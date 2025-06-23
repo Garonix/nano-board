@@ -23,4 +23,158 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* 防止页面滚动，实现真正的全屏体验 */
+}
+
+/* 全屏白板样式优化 */
+html, body, #__next {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 普通模式下的文本编辑器样式优化 */
+.plain-editor-overlay {
+  /* 确保光标可见 */
+  caret-color: #374151;
+  /* 确保层级正确 */
+  position: relative;
+  z-index: 30;
+  /* 隐藏textarea自身的滚动条，使用底层容器的滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* 隐藏textarea的滚动条 */
+.plain-editor-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.plain-editor-overlay::-webkit-scrollbar {
+  width: 8px;
+}
+
+.plain-editor-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.plain-editor-overlay::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+.plain-editor-overlay::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.7);
+}
+
+.plain-editor-overlay::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+
+/* 图片加载动画优化 */
+.image-loading {
+  background: linear-gradient(90deg, #f8fafc 25%, #f1f5f9 50%, #f8fafc 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 优化滚动条样式 */
+.overflow-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.overflow-auto::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* 图片容器优化 */
+.image-container {
+  transition: all 0.3s ease;
+}
+
+.image-container:hover {
+  transform: scale(1.02);
+}
+
+/* 模式切换优化 - 确保界面完全独立 */
+.mode-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: white;
+  z-index: 20;
+  /* 创建新的层叠上下文，防止事件穿透 */
+  isolation: isolate;
+}
+
+.mode-container.normal-mode {
+  z-index: 20;
+}
+
+.mode-container.markdown-mode {
+  z-index: 20;
+}
+
+/* 防止内容透过显示 */
+.editor-background {
+  background-color: white !important;
+  opacity: 1 !important;
+}
+
+/* 普通模式渲染容器优化 */
+.normal-mode-render-container {
+  /* 确保滚动事件不穿透 */
+  pointer-events: auto;
+  /* 优化滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.normal-mode-render-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.normal-mode-render-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.normal-mode-render-container::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+.normal-mode-render-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.7);
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .plain-editor-overlay,
+  textarea {
+    padding: 1rem !important;
+  }
 }

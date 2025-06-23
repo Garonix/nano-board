@@ -58,6 +58,14 @@ tmp/
 test-scripts/
 *.test.js.tmp
 *.test.ts.tmp
+test-layout.md
+test-drag-fix.md
+test-scroll-fix.js
+test-mode-isolation.js
+test-image-optimization.md
+test-fix-verification.md
+test-normal-mode-images.js
+test-transparency-fix.js
 
 # 编辑器配置
 .vscode/
@@ -73,3 +81,6 @@ public/uploads/
 # 备份文件
 *.backup
 *.bak
+docs
+data
+test-fixes-verification.md
