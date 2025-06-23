@@ -152,6 +152,32 @@ html, body, #__next {
   /* 优化滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  /* 确保内容正常流式布局 */
+  display: block;
+  position: relative;
+}
+
+/* 修复图片显示布局问题 */
+.normal-mode-render-container img {
+  /* 确保图片作为正常的块级元素显示 */
+  display: block !important;
+  position: static !important;
+  /* 移除可能导致悬浮的样式 */
+  float: none !important;
+  clear: both !important;
+  /* 确保图片在文档流中正常占位 */
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* 图片容器布局修复 */
+.normal-mode-render-container .block {
+  /* 确保容器正常占据文档流 */
+  display: block !important;
+  position: static !important;
+  width: 100%;
+  clear: both;
 }
 
 .normal-mode-render-container::-webkit-scrollbar {
