@@ -71,6 +71,7 @@ test-bug-fixes.js
 test-refactor.js
 test-empty-textblock-removal.js
 test-env-password-auth.js
+test-ui-improvements.js
 图片删除功能完成报告.md
 关键问题修复完成报告.md
 

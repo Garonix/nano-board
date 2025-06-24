@@ -390,18 +390,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                         }}
                       />
                     ) : (
-                    <div className="relative group w-full text-center my-4">
-                      {/* 图片删除按钮 - 优化图标样式 */}
-                      <button
-                        onClick={() => deleteBlock(block.id)}
-                        className="absolute top-3 right-3 z-10 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110"
-                        title="删除图片"
-                      >
-                        <span className="text-xs font-bold">×</span>
-                      </button>
+                    <div className="w-full text-center my-4">
+                      {/* 图片容器 - 限制最大高度300px，修复删除按钮定位 */}
+                      <div className="relative inline-block bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 max-w-full group">
+                        {/* 图片删除按钮 - 精确定位在图片元素右上角 */}
+                        <button
+                          onClick={() => deleteBlock(block.id)}
+                          className="absolute top-2 right-2 z-10 w-7 h-7 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110"
+                          title="删除图片"
+                        >
+                          <span className="text-xs font-bold">×</span>
+                        </button>
 
-                      {/* 图片容器 - 限制最大高度300px */}
-                      <div className="relative inline-block bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 max-w-full">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={block.content}
