@@ -26,12 +26,22 @@ cd nano-board
 npm install
 ```
 
-3. **启动开发服务器**
+3. **配置环境变量（可选）**
+```bash
+# 复制环境变量模板
+cp .env.example .env.local
+
+# 编辑环境变量文件
+# 设置 ENABLE_PASSWORD_AUTH=true 启用密码验证
+# 设置 ACCESS_PASSWORD=your_password 自定义访问密码
+```
+
+4. **启动开发服务器**
 ```bash
 npm run dev
 ```
 
-4. **访问应用**
+5. **访问应用**
 打开浏览器访问 [http://localhost:3000](http://localhost:3000)
 
 ### 生产部署
@@ -45,7 +55,15 @@ docker build -t nano-board .
 
 2. **运行容器**
 ```bash
+# 基本运行（不启用密码验证）
 docker run -p 3000:3000 -v $(pwd)/data:/app/data nano-board
+
+# 启用密码验证
+docker run -p 3000:3000 \
+  -e ENABLE_PASSWORD_AUTH=true \
+  -e ACCESS_PASSWORD=your_secure_password \
+  -v $(pwd)/data:/app/data \
+  nano-board
 ```
 
 #### 手动部署
@@ -90,12 +108,63 @@ npm start
 
 ## ⚙️ 配置选项
 
-应用提供以下配置选项：
+### 环境变量配置
 
-- **认证开关**：可完全禁用用户认证功能
+应用支持通过环境变量进行配置，主要配置项如下：
+
+#### 密码验证控制
+- **`ENABLE_PASSWORD_AUTH`**：控制是否启用密码验证功能
+  - `true`：启用密码验证，用户需要输入密码才能访问应用
+  - `false` 或未设置：禁用密码验证，直接进入应用（默认）
+  - 适用场景：在不同部署环境中灵活控制访问权限
+
+- **`ACCESS_PASSWORD`**：自定义访问密码（可选）
+  - 仅在 `ENABLE_PASSWORD_AUTH=true` 时生效
+  - 未设置时使用默认密码：`nano2024`
+  - 生产环境建议设置自定义密码
+
+#### 其他配置选项
 - **图片大小限制**：设置单张图片的最大大小
 - **允许的图片格式**：配置支持的图片文件类型
 - **默认样式**：设置默认字体大小、颜色等
+
+### 配置示例
+
+#### 开发环境配置
+```bash
+# .env.local 文件
+ENABLE_PASSWORD_AUTH=false  # 开发时不启用密码验证
+```
+
+#### 生产环境配置
+```bash
+# 环境变量或 .env.production 文件
+ENABLE_PASSWORD_AUTH=true
+ACCESS_PASSWORD=your_secure_production_password
+```
+
+#### Docker 部署配置
+```bash
+# 通过环境变量传递
+docker run -p 3000:3000 \
+  -e ENABLE_PASSWORD_AUTH=true \
+  -e ACCESS_PASSWORD=secure_password_123 \
+  -v $(pwd)/data:/app/data \
+  nano-board
+
+# 或通过 docker-compose.yml
+version: '3.8'
+services:
+  nano-board:
+    image: nano-board
+    ports:
+      - "3000:3000"
+    environment:
+      - ENABLE_PASSWORD_AUTH=true
+      - ACCESS_PASSWORD=secure_password_123
+    volumes:
+      - ./data:/app/data
+```
 
 ## 🛠️ 技术栈
 

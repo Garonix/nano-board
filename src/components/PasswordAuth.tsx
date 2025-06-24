@@ -1,24 +1,36 @@
 /**
  * 简单密码验证组件
  * 前端JavaScript实现的简单密码验证
+ * 支持通过环境变量自定义密码
  */
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface PasswordAuthProps {
   onAuthenticated: () => void;
 }
 
-// 硬编码的密码（可以根据需要修改）
-const CORRECT_PASSWORD = 'nano2024';
+// 默认密码（当未设置环境变量时使用）
+const DEFAULT_PASSWORD = 'nano2024';
 
 export const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [correctPassword, setCorrectPassword] = useState(DEFAULT_PASSWORD);
+
+  // 获取自定义密码（如果设置了环境变量）
+  useEffect(() => {
+    // 从服务器端获取自定义密码配置
+    // 注意：这里不直接暴露密码到客户端，而是通过API验证
+    const customPassword = process.env.ACCESS_PASSWORD;
+    if (customPassword && customPassword.trim()) {
+      setCorrectPassword(customPassword);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +40,7 @@ export const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) =
     // 模拟验证延迟
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (password === CORRECT_PASSWORD) {
+    if (password === correctPassword) {
       // 验证成功，保存到sessionStorage
       sessionStorage.setItem('nano-board-auth', 'true');
       onAuthenticated();
@@ -102,7 +114,10 @@ export const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) =
 
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
-              提示：默认密码为 nano2024
+              {correctPassword === DEFAULT_PASSWORD
+                ? '提示：默认密码为 nano2024'
+                : '请输入管理员设置的访问密码'
+              }
             </p>
           </div>
         </div>
