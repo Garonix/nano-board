@@ -104,8 +104,19 @@ export const useEditorState = () => {
     // 只在普通模式下执行此检查
     if (isMarkdownMode) return blocks;
 
-    // 如果没有块或最后一个块不是文本块，添加文本块
-    if (blocks.length === 0 || blocks[blocks.length - 1].type !== 'text') {
+    // 如果没有块，添加一个空文本块
+    if (blocks.length === 0) {
+      const newTextBlock: ContentBlock = {
+        id: Date.now().toString(),
+        type: 'text',
+        content: ''
+      };
+      return [newTextBlock];
+    }
+
+    // 如果最后一个块不是文本块，或者最后一个文本块有内容，添加新的空文本块
+    const lastBlock = blocks[blocks.length - 1];
+    if (lastBlock.type !== 'text' || lastBlock.content.trim() !== '') {
       const newTextBlock: ContentBlock = {
         id: Date.now().toString(),
         type: 'text',
@@ -143,6 +154,19 @@ export const useEditorState = () => {
     setFocusedBlockId(newTextBlock.id);
   }, []);
 
+  // 处理模式切换后的状态同步
+  const syncBlocksAfterModeSwitch = useCallback((newBlocks: ContentBlock[]) => {
+    // 应用 ensureEndingTextBlock 逻辑
+    const syncedBlocks = ensureEndingTextBlock(newBlocks);
+    setBlocks(syncedBlocks);
+
+    // 设置焦点到第一个文本块
+    const firstTextBlock = syncedBlocks.find(block => block.type === 'text');
+    if (firstTextBlock) {
+      setFocusedBlockId(firstTextBlock.id);
+    }
+  }, [ensureEndingTextBlock]);
+
   // 检查页面是否包含图片块
   const hasImageBlocks = blocks.some(block => block.type === 'image');
 
@@ -163,7 +187,7 @@ export const useEditorState = () => {
     // 状态
     editorState,
     hasImageBlocks,
-    
+
     // 状态更新函数
     setBlocks,
     setIsMarkdownMode,
@@ -174,12 +198,13 @@ export const useEditorState = () => {
     setFocusedBlockId,
     setShowHistorySidebar,
     setCachedImages,
-    
+
     // 业务逻辑函数
     updateBlockContent,
     deleteBlock,
     deleteEmptyTextBlock,
     clearAllBlocks,
-    ensureEndingTextBlock
+    ensureEndingTextBlock,
+    syncBlocksAfterModeSwitch
   };
 };

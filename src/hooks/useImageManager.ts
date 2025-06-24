@@ -5,15 +5,15 @@
 
 import { useCallback, useRef } from 'react';
 import { ContentBlock, ImageCacheItem } from '@/types';
-import { 
-  isImageFile, 
-  fileToBase64, 
-  saveImagesToCache, 
-  loadImageCache, 
-  clearImageCache, 
-  removeImageFromCache, 
-  deleteImageFromServer, 
-  batchDeleteImagesFromServer 
+import {
+  isImageFile,
+  fileToBase64,
+  saveImagesToCache,
+  loadImageCache,
+  clearImageCache,
+  removeImageFromCache,
+  deleteImageFromServer,
+  batchDeleteImagesFromServer
 } from '@/lib/utils';
 
 /**
@@ -70,8 +70,9 @@ export const useImageManager = (
     const end = textarea.selectionEnd;
     const value = textarea.value;
 
-    // 构建图片Markdown语法
-    const imageMarkdown = `![${altText}](${imageSrc})`;
+    // 构建图片Markdown语法，自动添加两个空格和换行符以优化用户体验
+    // 两个空格 + 换行符在Markdown中表示强制换行，让用户可以立即在下一行继续输入
+    const imageMarkdown = `![${altText}](${imageSrc})  \n`;
 
     // 在光标位置插入图片语法
     const newValue = value.slice(0, start) + imageMarkdown + value.slice(end);
@@ -87,7 +88,7 @@ export const useImageManager = (
       loadCachedImages(); // 刷新图片缓存列表
     }
 
-    // 设置光标位置到图片语法后
+    // 设置光标位置到换行符后，用户可以立即继续输入文本
     setTimeout(() => {
       const newCursorPos = start + imageMarkdown.length;
       textarea.setSelectionRange(newCursorPos, newCursorPos);

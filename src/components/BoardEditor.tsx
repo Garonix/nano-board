@@ -40,7 +40,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     updateBlockContent,
     deleteBlock,
     deleteEmptyTextBlock,
-    clearAllBlocks
+    clearAllBlocks,
+    syncBlocksAfterModeSwitch
   } = useEditorState();
 
   // 解构编辑器状态
@@ -89,7 +90,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     contentToBlocks,
     setBlocks,
     setFocusedBlockId,
-    setIsLoading
+    setIsLoading,
+    syncBlocksAfterModeSwitch
   );
 
   // 键盘事件处理 Hook
@@ -310,10 +312,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           </div>
         )}
 
-        {/* 普通模式：分块显示 */}
+        {/* 普通模式：分块显示 - 优化文本框宽度以提升阅读体验 */}
         {!isMarkdownMode && (
           <div className="w-full h-full overflow-auto p-2">
-            <div className="max-w-none space-y-3">
+            {/* 添加响应式左右边距，缩减文本框宽度以提升阅读体验，保持居中显示 */}
+            {/* 大屏幕：左右各300px边距，中等屏幕：150px，小屏幕：20px */}
+            <div className="max-w-none space-y-3 mx-auto px-5 md:px-[150px] xl:px-[300px] min-w-0">
               {blocks.map((block, index) => {
                 return (
                   <div key={block.id} className="relative">
@@ -428,7 +432,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 </div>
                 );
               })}
-
             </div>
           </div>
         )}

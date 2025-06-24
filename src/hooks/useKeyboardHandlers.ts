@@ -87,8 +87,12 @@ export const useKeyboardHandlers = (
         e.preventDefault();
         const newValue = value.slice(0, start) + '\n' + value.slice(end);
 
-        // 更新textarea值
-        updateBlockContent('1', newValue); // Markdown模式只有一个文本块
+        // 直接更新 textarea 的值，避免触发 contentToBlocks 转换
+        textarea.value = newValue;
+
+        // 手动触发 onChange 事件以更新状态
+        const changeEvent = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(changeEvent);
 
         // 设置光标位置到换行符后
         setTimeout(() => {
@@ -103,7 +107,6 @@ export const useKeyboardHandlers = (
     showMarkdownPreview,
     setIsMarkdownMode,
     setShowMarkdownPreview,
-    updateBlockContent,
     contentToBlocks,
     setBlocks
   ]);
