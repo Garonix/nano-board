@@ -42,6 +42,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 引用
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // 将blocks转换为文本内容（用于保存）
   const blocksToContent = (blocks: ContentBlock[]): string => {
@@ -202,11 +203,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-  // 加载数据
+  // 加载数据 - 根据当前模式加载对应的数据文件
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/board?mode=normal');
+      const mode = isMarkdownMode ? 'markdown' : 'normal';
+      const response = await fetch(`/api/board?mode=${mode}`);
       const data = await response.json();
       const loadedBlocks = contentToBlocks(data.content || '');
       setBlocks(loadedBlocks);
@@ -218,17 +220,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-  // 保存数据
+  // 保存数据 - 根据当前模式保存到对应的数据文件
   const saveData = async () => {
     const content = blocksToContent(blocks);
     if (!content.trim()) return;
 
     try {
       setIsSaving(true);
+      const mode = isMarkdownMode ? 'markdown' : 'normal';
       await fetch('/api/board', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, mode: 'normal' }),
+        body: JSON.stringify({ content, mode }),
       });
     } catch (error) {
       console.error('保存失败:', error);
@@ -397,7 +400,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   // 初始化
   useEffect(() => {
-    loadData();
     loadCachedImages(); // 加载图片缓存
 
     // 加载保存的设置
@@ -406,6 +408,28 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     if (savedMode) setIsMarkdownMode(savedMode === 'true');
     if (savedPreview) setShowMarkdownPreview(savedPreview === 'true');
   }, []);
+
+  // 当模式切换时重新加载对应的数据
+  useEffect(() => {
+    loadData();
+  }, [isMarkdownMode]);
+
+  // 处理点击外部区域关闭侧边栏
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showHistorySidebar && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setShowHistorySidebar(false);
+      }
+    };
+
+    if (showHistorySidebar) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showHistorySidebar]);
 
   // 自动保存
   useEffect(() => {
@@ -596,7 +620,75 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
 
 
-  // 处理键盘快捷键
+  // 处理Markdown模式下的键盘事件
+  const handleMarkdownKeyDown = (e: React.KeyboardEvent) => {
+    // Ctrl/Cmd + M 切换Markdown模式
+    if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+      e.preventDefault();
+      setIsMarkdownMode(!isMarkdownMode);
+      return;
+    }
+
+    // Ctrl/Cmd + P 切换Markdown预览（仅在Markdown模式下有效）
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      setShowMarkdownPreview(!showMarkdownPreview);
+      return;
+    }
+
+    // Tab 键插入空格
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const textarea = e.target as HTMLTextAreaElement;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+
+      const newValue = value.slice(0, start) + '  ' + value.slice(end);
+      textarea.value = newValue;
+
+      // 更新blocks状态
+      const newBlocks = contentToBlocks(newValue);
+      setBlocks(newBlocks);
+
+      // 设置光标位置
+      setTimeout(() => {
+        textarea.setSelectionRange(start + 2, start + 2);
+      }, 0);
+      return;
+    }
+
+    // Enter 键处理 - 确保在图片后能正常换行
+    if (e.key === 'Enter') {
+      const textarea = e.target as HTMLTextAreaElement;
+      const start = textarea.selectionStart;
+      const value = textarea.value;
+
+      // 检查光标前是否是图片语法结尾
+      const beforeCursor = value.slice(0, start);
+      const imageRegex = /!\[([^\]]*)\]\([^)]+\)$/;
+
+      if (imageRegex.test(beforeCursor)) {
+        // 在图片后插入两个换行符，确保有足够的空间继续编辑
+        e.preventDefault();
+        const newValue = value.slice(0, start) + '\n\n' + value.slice(start);
+        textarea.value = newValue;
+
+        // 更新blocks状态
+        const newBlocks = contentToBlocks(newValue);
+        setBlocks(newBlocks);
+
+        // 设置光标位置到第二个换行符后
+        setTimeout(() => {
+          textarea.setSelectionRange(start + 2, start + 2);
+          textarea.focus();
+        }, 0);
+        return;
+      }
+    }
+  };
+
+  // 处理普通模式下的键盘快捷键
   const handleKeyDown = (e: React.KeyboardEvent, blockId: string) => {
     // Ctrl/Cmd + M 切换Markdown模式
     if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
@@ -610,19 +702,42 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       setShowMarkdownPreview(!showMarkdownPreview);
     }
 
-    // Backspace 键处理：删除空文本块
+    // Backspace 键处理：只在特定条件下删除空文本块
     if (e.key === 'Backspace') {
       const textarea = e.target as HTMLTextAreaElement;
       const currentBlock = blocks.find(block => block.id === blockId);
 
-      // 如果光标在开头且文本块为空，且不是唯一块，则删除该块
+      // 只有在以下所有条件都满足时才删除文本块：
+      // 1. 光标在文本开头（selectionStart === 0）
+      // 2. 没有选中任何文本（selectionStart === selectionEnd）
+      // 3. 当前块是文本块且完全为空
+      // 4. 不是唯一的块
+      // 5. 用户明确想要删除块（通过检查是否是连续的backspace操作）
       if (textarea.selectionStart === 0 &&
+          textarea.selectionStart === textarea.selectionEnd &&
           currentBlock &&
           currentBlock.type === 'text' &&
-          !currentBlock.content.trim() &&
+          currentBlock.content === '' && // 使用严格的空字符串检查
           blocks.length > 1) {
         e.preventDefault();
         deleteEmptyTextBlock(blockId);
+
+        // 将焦点移动到前一个文本块的末尾
+        const currentIndex = blocks.findIndex(block => block.id === blockId);
+        if (currentIndex > 0) {
+          const prevBlock = blocks[currentIndex - 1];
+          if (prevBlock.type === 'text') {
+            setTimeout(() => {
+              setFocusedBlockId(prevBlock.id);
+              const prevTextarea = document.querySelector(`textarea[data-block-id="${prevBlock.id}"]`) as HTMLTextAreaElement;
+              if (prevTextarea) {
+                const length = prevBlock.content.length;
+                prevTextarea.setSelectionRange(length, length);
+                prevTextarea.focus();
+              }
+            }, 0);
+          }
+        }
       }
     }
 
@@ -644,8 +759,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-  // 简单的Markdown组件
+  // 增强的Markdown组件配置 - 支持完整的Markdown语法
   const markdownComponents = {
+    // 代码块和内联代码
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code(props: any) {
       const { inline, className, children, ...rest } = props;
@@ -655,35 +771,161 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           style={tomorrow}
           language={match[1]}
           PreTag="div"
-          className="rounded-lg shadow-sm border border-gray-200"
+          className="rounded-lg shadow-sm border border-gray-200 my-4"
           {...rest}
         >
           {String(children).replace(/\n$/, '')}
         </SyntaxHighlighter>
       ) : (
-        <code className={cn('bg-gray-100 px-2 py-1 rounded text-sm font-mono', className)} {...rest}>
+        <code className={cn('bg-gray-100 px-2 py-1 rounded text-sm font-mono text-red-600', className)} {...rest}>
           {children}
         </code>
       );
     },
+
+    // 图片组件 - 优化显示，不显示alt文本
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     img(props: any) {
       const { src, alt, ...rest } = props;
       return (
-        <div className="my-6 text-center">
+        <span className="inline-block my-6 text-center w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
-            className="max-w-full h-auto rounded-lg shadow-sm"
+            className="max-w-full h-auto rounded-lg shadow-sm block mx-auto"
             style={{
               maxHeight: '300px',
               objectFit: 'contain'
             }}
             {...rest}
           />
+        </span>
+      );
+    },
+
+    // 标题组件 - 确保正确渲染
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h1(props: any) {
+      return <h1 className="text-3xl font-bold text-gray-900 mb-6 mt-8 pb-2 border-b border-gray-200" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h2(props: any) {
+      return <h2 className="text-2xl font-semibold text-gray-800 mb-4 mt-6 pb-1 border-b border-gray-100" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h3(props: any) {
+      return <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-5" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h4(props: any) {
+      return <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h5(props: any) {
+      return <h5 className="text-base font-medium text-gray-700 mb-2 mt-3" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h6(props: any) {
+      return <h6 className="text-sm font-medium text-gray-600 mb-2 mt-3" {...props} />;
+    },
+
+    // 段落组件
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    p(props: any) {
+      const { children, ...rest } = props;
+
+      // 检查子元素中是否包含图片
+      const hasImage = React.Children.toArray(children).some((child: any) =>
+        child?.type === 'img' ||
+        (child?.props && child.props.src)
+      );
+
+      // 如果包含图片，使用div而不是p标签
+      if (hasImage) {
+        return <div className="mb-4" {...rest}>{children}</div>;
+      }
+
+      return <p className="mb-4 leading-relaxed text-gray-700" {...rest}>{children}</p>;
+    },
+
+    // 列表组件 - 确保正确渲染
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ul(props: any) {
+      return <ul className="list-disc list-inside mb-4 space-y-1 text-gray-700" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ol(props: any) {
+      return <ol className="list-decimal list-inside mb-4 space-y-1 text-gray-700" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    li(props: any) {
+      return <li className="mb-1" {...props} />;
+    },
+
+    // 引用块
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    blockquote(props: any) {
+      return (
+        <blockquote className="border-l-4 border-blue-500 pl-4 py-2 mb-4 bg-blue-50 text-gray-700 italic" {...props} />
+      );
+    },
+
+    // 表格组件
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    table(props: any) {
+      return (
+        <div className="overflow-x-auto mb-4">
+          <table className="min-w-full border border-gray-200 rounded-lg" {...props} />
         </div>
       );
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    thead(props: any) {
+      return <thead className="bg-gray-50" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    th(props: any) {
+      return <th className="px-4 py-2 text-left font-semibold text-gray-700 border-b border-gray-200" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    td(props: any) {
+      return <td className="px-4 py-2 text-gray-700 border-b border-gray-100" {...props} />;
+    },
+
+    // 水平分割线
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hr(props: any) {
+      return <hr className="my-8 border-gray-300" {...props} />;
+    },
+
+    // 强调和加粗
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    strong(props: any) {
+      return <strong className="font-bold text-gray-900" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    em(props: any) {
+      return <em className="italic text-gray-700" {...props} />;
+    },
+
+    // 链接
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a(props: any) {
+      return (
+        <a
+          className="text-blue-600 hover:text-blue-800 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          {...props}
+        />
+      );
+    },
+
+    // 删除线
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    del(props: any) {
+      return <del className="line-through text-gray-500" {...props} />;
     },
   };
 
@@ -755,7 +997,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             title="查看图片缓存"
           >
-            历史
+            历史图片
           </button>
 
           {isUploadingImage && (
@@ -810,6 +1052,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             }, 0);
                           }
                         }}
+                        data-block-id={block.id}
                         value={block.content}
                         onChange={(e) => {
                           const newContent = e.target.value;
@@ -930,7 +1173,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   setBlocks(newBlocks);
                 }}
                 onPaste={(e) => handlePaste(e, focusedBlockId)}
-                onKeyDown={(e) => handleKeyDown(e, focusedBlockId)}
+                onKeyDown={handleMarkdownKeyDown}
                 onBlur={() => {
                   // 失去焦点时立即保存图片到缓存
                   const images = extractImagesFromBlocks(blocks);
@@ -971,10 +1214,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
       {/* 图片缓存侧边栏 */}
       {showHistorySidebar && (
-        <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right border-l border-gray-200">
+        <div ref={sidebarRef} className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right border-l border-gray-200">
           {/* 侧边栏头部 */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-lg font-semibold text-gray-900">图片缓存</h3>
+            <h3 className="text-lg font-semibold text-gray-900">历史图片</h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleClearImageCache}

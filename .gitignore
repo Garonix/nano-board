@@ -65,7 +65,10 @@ test-transparency-fix.js
 test-key-fix.js
 test-local-storage.js
 test-image-deletion.js
+test-improvements.js
+test-new-improvements.js
 图片删除功能完成报告.md
+关键问题修复完成报告.md
 
 # 编辑器配置
 .vscode/
@@ -82,3 +85,4 @@ public/uploads/
 *.backup
 *.bak
 data
+*.md

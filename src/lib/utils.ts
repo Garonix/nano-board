@@ -224,6 +224,10 @@ export async function deleteImageFromServer(imageSrc: string): Promise<boolean> 
       const result = await response.json();
       console.log('服务器图片删除成功:', result.message);
       return true;
+    } else if (response.status === 404) {
+      // 文件不存在被视为成功（已经不存在了）
+      console.log('图片文件不存在，视为删除成功:', fileName);
+      return true;
     } else {
       const error = await response.json();
       console.error('服务器图片删除失败:', error.error);
@@ -260,7 +264,20 @@ export async function batchDeleteImagesFromServer(imageSrcs: string[]): Promise<
     if (response.ok) {
       const result = await response.json();
       console.log('批量删除服务器图片完成:', result.message);
-      return { success: result.success, results: result.results };
+
+      // 将"文件不存在"的情况也视为成功
+      const adjustedResults = result.results.map((item: any) => ({
+        ...item,
+        success: item.success || item.error === '文件不存在'
+      }));
+
+      const successCount = adjustedResults.filter((r: any) => r.success).length;
+      const adjustedSuccess = successCount === adjustedResults.length;
+
+      return {
+        success: adjustedSuccess,
+        results: adjustedResults
+      };
     } else {
       const error = await response.json();
       console.error('批量删除服务器图片失败:', error.error);
