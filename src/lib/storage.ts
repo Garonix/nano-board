@@ -73,7 +73,7 @@ async function migrateLegacyData(): Promise<void> {
 
   } catch (error) {
     // 旧版本文件不存在或迁移失败，这是正常情况
-    if ((error as any).code !== 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       console.warn('数据迁移过程中出现警告:', error);
     }
   }

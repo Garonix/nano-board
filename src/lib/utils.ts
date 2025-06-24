@@ -5,6 +5,21 @@
 
 import { type ClassValue, clsx } from 'clsx';
 
+// 图片缓存项类型
+interface CacheItem {
+  id: string;
+  src: string;
+  alt: string;
+  timestamp: string | Date;
+  fileSize?: number;
+}
+
+// 删除结果类型
+interface DeleteResult {
+  success: boolean;
+  error?: string;
+}
+
 /**
  * 合并CSS类名
  * @param inputs 类名输入
@@ -127,7 +142,7 @@ export function saveImagesToCache(images: Array<{id: string, src: string, alt: s
     }));
 
     // 添加到缓存开头，避免重复
-    const existingSrcs = new Set(cacheData.items.map((item: any) => item.src));
+    const existingSrcs = new Set(cacheData.items.map((item: CacheItem) => item.src));
     const uniqueNewItems = newItems.filter(item => !existingSrcs.has(item.src));
 
     if (uniqueNewItems.length > 0) {
@@ -162,7 +177,7 @@ export function loadImageCache(): Array<{
     if (!data) return [];
 
     const cacheData = JSON.parse(data);
-    return cacheData.items.map((item: any) => ({
+    return cacheData.items.map((item: CacheItem) => ({
       ...item,
       timestamp: new Date(item.timestamp)
     }));
@@ -193,7 +208,7 @@ export function removeImageFromCache(imageId: string): void {
     if (!data) return;
 
     const cacheData = JSON.parse(data);
-    cacheData.items = cacheData.items.filter((item: any) => item.id !== imageId);
+    cacheData.items = cacheData.items.filter((item: CacheItem) => item.id !== imageId);
     cacheData.lastUpdated = new Date();
 
     localStorage.setItem(IMAGE_CACHE_STORAGE_KEY, JSON.stringify(cacheData));
@@ -244,7 +259,7 @@ export async function deleteImageFromServer(imageSrc: string): Promise<boolean> 
  * @param imageSrcs 图片URL路径数组
  * @returns Promise<{success: boolean, results: any[]}> 删除结果
  */
-export async function batchDeleteImagesFromServer(imageSrcs: string[]): Promise<{success: boolean, results: any[]}> {
+export async function batchDeleteImagesFromServer(imageSrcs: string[]): Promise<{success: boolean, results: DeleteResult[]}> {
   try {
     // 从URL中提取文件名
     const fileNames = imageSrcs.map(src => src.split('/').pop()).filter(Boolean);
@@ -266,12 +281,12 @@ export async function batchDeleteImagesFromServer(imageSrcs: string[]): Promise<
       console.log('批量删除服务器图片完成:', result.message);
 
       // 将"文件不存在"的情况也视为成功
-      const adjustedResults = result.results.map((item: any) => ({
+      const adjustedResults = result.results.map((item: DeleteResult) => ({
         ...item,
         success: item.success || item.error === '文件不存在'
       }));
 
-      const successCount = adjustedResults.filter((r: any) => r.success).length;
+      const successCount = adjustedResults.filter((r: DeleteResult) => r.success).length;
       const adjustedSuccess = successCount === adjustedResults.length;
 
       return {

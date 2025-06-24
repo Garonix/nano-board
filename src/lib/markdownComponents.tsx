@@ -1,0 +1,183 @@
+/**
+ * Markdown 组件配置
+ * 提供增强的 Markdown 渲染组件
+ */
+
+import React from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { cn } from '@/lib/utils';
+
+/**
+ * 增强的Markdown组件配置 - 支持完整的Markdown语法
+ */
+export const markdownComponents = {
+  // 代码块和内联代码
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  code(props: any) {
+    const { inline, className, children, ...rest } = props;
+    const match = /language-(\w+)/.exec(className || '');
+    return !inline && match ? (
+      <SyntaxHighlighter
+        style={tomorrow}
+        language={match[1]}
+        PreTag="div"
+        className="rounded-lg shadow-sm border border-gray-200 my-4"
+        {...rest}
+      >
+        {String(children).replace(/\n$/, '')}
+      </SyntaxHighlighter>
+    ) : (
+      <code className={cn('bg-gray-100 px-2 py-1 rounded text-sm font-mono text-red-600', className)} {...rest}>
+        {children}
+      </code>
+    );
+  },
+
+  // 图片组件 - 优化显示，不显示alt文本
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  img(props: any) {
+    const { src, alt, ...rest } = props;
+    return (
+      <span className="inline-block my-6 text-center w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt}
+          className="max-w-full h-auto rounded-lg shadow-sm block mx-auto"
+          style={{
+            maxHeight: '300px',
+            objectFit: 'contain'
+          }}
+          {...rest}
+        />
+      </span>
+    );
+  },
+
+  // 标题组件 - 确保正确渲染
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  h1(props: any) {
+    return <h1 className="text-3xl font-bold text-gray-900 mb-6 mt-8 pb-2 border-b border-gray-200" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  h2(props: any) {
+    return <h2 className="text-2xl font-semibold text-gray-800 mb-4 mt-6 pb-1 border-b border-gray-100" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  h3(props: any) {
+    return <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-5" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  h4(props: any) {
+    return <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  h5(props: any) {
+    return <h5 className="text-base font-medium text-gray-700 mb-2 mt-3" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  h6(props: any) {
+    return <h6 className="text-sm font-medium text-gray-600 mb-2 mt-3" {...props} />;
+  },
+
+  // 段落组件
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  p(props: any) {
+    const { children, ...rest } = props;
+
+    // 检查子元素中是否包含图片
+    const hasImage = React.Children.toArray(children).some((child) => {
+      if (React.isValidElement(child)) {
+        return child.type === 'img' || (child.props && typeof child.props === 'object' && child.props !== null && 'src' in child.props);
+      }
+      return false;
+    });
+
+    // 如果包含图片，使用div而不是p标签
+    if (hasImage) {
+      return <div className="mb-4" {...rest}>{children}</div>;
+    }
+
+    return <p className="mb-4 leading-relaxed text-gray-700" {...rest}>{children}</p>;
+  },
+
+  // 列表组件 - 确保正确渲染
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ul(props: any) {
+    return <ul className="list-disc list-inside mb-4 space-y-1 text-gray-700" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ol(props: any) {
+    return <ol className="list-decimal list-inside mb-4 space-y-1 text-gray-700" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  li(props: any) {
+    return <li className="mb-1" {...props} />;
+  },
+
+  // 引用块
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  blockquote(props: any) {
+    return (
+      <blockquote className="border-l-4 border-blue-500 pl-4 py-2 mb-4 bg-blue-50 text-gray-700 italic" {...props} />
+    );
+  },
+
+  // 表格组件
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  table(props: any) {
+    return (
+      <div className="overflow-x-auto mb-4">
+        <table className="min-w-full border border-gray-200 rounded-lg" {...props} />
+      </div>
+    );
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  thead(props: any) {
+    return <thead className="bg-gray-50" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  th(props: any) {
+    return <th className="px-4 py-2 text-left font-semibold text-gray-700 border-b border-gray-200" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  td(props: any) {
+    return <td className="px-4 py-2 text-gray-700 border-b border-gray-100" {...props} />;
+  },
+
+  // 水平分割线
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  hr(props: any) {
+    return <hr className="my-8 border-gray-300" {...props} />;
+  },
+
+  // 强调和加粗
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  strong(props: any) {
+    return <strong className="font-bold text-gray-900" {...props} />;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  em(props: any) {
+    return <em className="italic text-gray-700" {...props} />;
+  },
+
+  // 链接
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  a(props: any) {
+    return (
+      <a
+        className="text-blue-600 hover:text-blue-800 underline"
+        target="_blank"
+        rel="noopener noreferrer"
+        {...props}
+      />
+    );
+  },
+
+  // 删除线
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  del(props: any) {
+    return <del className="line-through text-gray-500" {...props} />;
+  },
+};

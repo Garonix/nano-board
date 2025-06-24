@@ -12,6 +12,14 @@ export interface BoardContent {
   lastModified: Date;
 }
 
+// 内容块类型
+export interface ContentBlock {
+  id: string;
+  type: 'text' | 'image';
+  content: string; // 文本内容或图片URL
+  alt?: string; // 图片alt文本
+}
+
 // 图片数据类型
 export interface ImageData {
   id: string;
@@ -42,5 +50,24 @@ export interface ComponentProps {
 
 // 白板编辑器属性类型
 export interface BoardEditorProps extends ComponentProps {
-  // 可以扩展更多属性
+  mode?: 'normal' | 'markdown'; // 可以扩展更多属性
+}
+
+// 滚动同步配置类型
+export interface ScrollSyncConfig {
+  enabled: boolean;
+  debounceMs: number;
+}
+
+// 编辑器状态类型
+export interface EditorState {
+  blocks: ContentBlock[];
+  isMarkdownMode: boolean;
+  showMarkdownPreview: boolean;
+  isLoading: boolean;
+  isUploadingImage: boolean;
+  isDragOver: boolean;
+  focusedBlockId: string;
+  showHistorySidebar: boolean;
+  cachedImages: ImageCacheItem[];
 }
