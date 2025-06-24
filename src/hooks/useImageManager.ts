@@ -101,6 +101,17 @@ export const useImageManager = (
     setBlocks(prev => {
       const newBlocks = [...prev];
 
+      // 检查并删除末尾的空文本框
+      // 如果最后一个块是空的文本块，删除它以避免重复的空文本框
+      if (newBlocks.length > 0) {
+        const lastBlock = newBlocks[newBlocks.length - 1];
+        if (lastBlock.type === 'text' &&
+            (lastBlock.content === '' || lastBlock.content.trim() === '')) {
+          // 删除空的文本框，为图片插入做准备
+          newBlocks.pop();
+        }
+      }
+
       // 创建图片块
       const imageBlock: ContentBlock = {
         id: Date.now().toString(),
