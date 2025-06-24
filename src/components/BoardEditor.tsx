@@ -30,7 +30,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const [isMarkdownMode, setIsMarkdownMode] = useState(false);
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState('1');
@@ -145,8 +144,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   // 从缓存中恢复图片到编辑器
   const restoreImageFromCache = (cacheItem: ImageCacheItem) => {
-    // 在当前焦点位置插入图片
-    insertImageAtBlock(focusedBlockId, cacheItem.src, cacheItem.alt);
+    if (isMarkdownMode) {
+      // Markdown模式：在光标位置插入图片语法
+      insertImageInMarkdownMode(cacheItem.src, cacheItem.alt);
+    } else {
+      // 普通模式：在当前焦点位置插入图片
+      insertImageAtBlock(focusedBlockId, cacheItem.src, cacheItem.alt);
+    }
     setShowHistorySidebar(false);
   };
 
@@ -220,13 +224,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-  // 保存数据 - 根据当前模式保存到对应的数据文件
+  // 保存数据 - 根据当前模式保存到对应的数据文件（静默保存）
   const saveData = async () => {
     const content = blocksToContent(blocks);
     if (!content.trim()) return;
 
     try {
-      setIsSaving(true);
       const mode = isMarkdownMode ? 'markdown' : 'normal';
       await fetch('/api/board', {
         method: 'POST',
@@ -235,8 +238,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       });
     } catch (error) {
       console.error('保存失败:', error);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -337,6 +338,33 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
       return prev.filter(b => b.id !== blockId);
     });
+  };
+
+  // 在Markdown模式下插入图片
+  const insertImageInMarkdownMode = (imageSrc: string, altText: string) => {
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+
+    // 构建图片Markdown语法
+    const imageMarkdown = `![${altText}](${imageSrc})`;
+
+    // 在光标位置插入图片语法
+    const newValue = value.slice(0, start) + imageMarkdown + value.slice(end);
+
+    // 更新blocks状态
+    const newBlocks = contentToBlocks(newValue);
+    setBlocks(newBlocks);
+
+    // 设置光标位置到图片语法后
+    setTimeout(() => {
+      const newCursorPos = start + imageMarkdown.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
   };
 
   // 在指定位置插入图片
@@ -461,7 +489,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     localStorage.setItem('nano-board-markdown-preview', showMarkdownPreview.toString());
   }, [showMarkdownPreview]);
 
-  // 处理图片粘贴
+  // 处理图片粘贴 - 改进Markdown模式支持
   const handlePaste = async (e: React.ClipboardEvent, blockId: string) => {
     const items = Array.from(e.clipboardData.items);
     const imageItems = items.filter(item => item.type.startsWith('image/'));
@@ -487,8 +515,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               const imageSrc = `/api/images/${result.imagePath.replace('data/pics/', '')}`;
               const altText = file.name?.replace(/\.[^/.]+$/, "") || '图片';
 
-              // 在当前块位置插入图片
-              insertImageAtBlock(blockId, imageSrc, altText);
+              if (isMarkdownMode) {
+                // Markdown模式：在光标位置插入图片语法
+                insertImageInMarkdownMode(imageSrc, altText);
+              } else {
+                // 普通模式：在当前块位置插入图片
+                insertImageAtBlock(blockId, imageSrc, altText);
+              }
             }
           }
         }
@@ -560,8 +593,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             const imageSrc = `/api/images/${result.imagePath.replace('data/pics/', '')}`;
             const altText = file.name.replace(/\.[^/.]+$/, "");
 
-            // 插入到当前焦点块
-            insertImageAtBlock(focusedBlockId, imageSrc, altText);
+            if (isMarkdownMode) {
+              // Markdown模式：在光标位置插入图片语法
+              insertImageInMarkdownMode(imageSrc, altText);
+            } else {
+              // 普通模式：插入到当前焦点块
+              insertImageAtBlock(focusedBlockId, imageSrc, altText);
+            }
           }
         }
       } catch (error) {
@@ -658,10 +696,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       return;
     }
 
-    // Enter 键处理 - 确保在图片后能正常换行
+    // Enter 键处理 - 改进图片后换行逻辑
     if (e.key === 'Enter') {
       const textarea = e.target as HTMLTextAreaElement;
       const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
       const value = textarea.value;
 
       // 检查光标前是否是图片语法结尾
@@ -669,18 +708,16 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       const imageRegex = /!\[([^\]]*)\]\([^)]+\)$/;
 
       if (imageRegex.test(beforeCursor)) {
-        // 在图片后插入两个换行符，确保有足够的空间继续编辑
+        // 在图片后插入换行符，允许正常的换行行为
         e.preventDefault();
-        const newValue = value.slice(0, start) + '\n\n' + value.slice(start);
-        textarea.value = newValue;
+        const newValue = value.slice(0, start) + '\n' + value.slice(end);
 
-        // 更新blocks状态
-        const newBlocks = contentToBlocks(newValue);
-        setBlocks(newBlocks);
+        // 更新textarea值
+        updateBlockContent('1', newValue); // Markdown模式只有一个文本块
 
-        // 设置光标位置到第二个换行符后
+        // 设置光标位置到换行符后
         setTimeout(() => {
-          textarea.setSelectionRange(start + 2, start + 2);
+          textarea.setSelectionRange(start + 1, start + 1);
           textarea.focus();
         }, 0);
         return;
@@ -1006,12 +1043,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               <span className="text-sm">上传中...</span>
             </div>
           )}
-          {isSaving && (
-            <div className="flex items-center gap-2 text-blue-600">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm">保存中...</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1254,7 +1285,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                     {/* 图片项头部 */}
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
-                        {image.alt || '未命名图片'}
+                        {/* 从URL中提取文件名显示，如果没有则使用alt文本 */}
+                        {image.src.split('/').pop()?.replace(/\.[^/.]+$/, '') || image.alt || '未命名图片'}
                       </h4>
                       <div className="flex items-center gap-2 ml-2">
                         <span className="text-xs text-gray-500 flex-shrink-0">
