@@ -58,20 +58,14 @@ tmp/
 test-scripts/
 *.test.js.tmp
 *.test.ts.tmp
-test-layout.md
-test-drag-fix.md
 test-scroll-fix.js
 test-mode-isolation.js
-test-image-optimization.md
-test-fix-verification.md
 test-normal-mode-images.js
 test-transparency-fix.js
 test-key-fix.js
-简化版本完成报告.md
-分块显示方案完成报告.md
-易用性功能修复完成报告.md
-文本框高度和滚动条修复完成报告.md
-三项优化完成报告.md
+test-local-storage.js
+test-image-deletion.js
+图片删除功能完成报告.md
 
 # 编辑器配置
 .vscode/
@@ -87,8 +81,4 @@ public/uploads/
 # 备份文件
 *.backup
 *.bak
-docs
 data
-test-fixes-verification.md
-test-critical-fixes.md
-test-image-layout-fix.md

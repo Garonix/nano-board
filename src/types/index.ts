@@ -19,6 +19,21 @@ export interface ImageData {
   alt: string;
 }
 
+// 图片缓存项类型
+export interface ImageCacheItem {
+  id: string;
+  src: string;
+  alt: string;
+  timestamp: Date;
+  fileSize?: number; // 文件大小（可选）
+}
+
+// 本地图片缓存数据类型
+export interface LocalImageCacheData {
+  items: ImageCacheItem[];
+  lastUpdated: Date;
+}
+
 // 组件属性类型
 export interface ComponentProps {
   className?: string;

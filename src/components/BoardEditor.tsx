@@ -11,8 +11,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { cn, isImageFile, fileToBase64 } from '@/lib/utils';
-import { BoardEditorProps } from '@/types';
+import { cn, isImageFile, fileToBase64, saveImagesToCache, loadImageCache, clearImageCache, removeImageFromCache, deleteImageFromServer, batchDeleteImagesFromServer, formatTimestamp } from '@/lib/utils';
+import { BoardEditorProps, ImageData, ImageCacheItem } from '@/types';
 
 // 内容块类型
 type ContentBlock = {
@@ -35,8 +35,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState('1');
 
+  // 图片缓存相关状态
+  const [showHistorySidebar, setShowHistorySidebar] = useState(false);
+  const [cachedImages, setCachedImages] = useState<ImageCacheItem[]>([]);
+
   // 引用
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 将blocks转换为文本内容（用于保存）
   const blocksToContent = (blocks: ContentBlock[]): string => {
@@ -104,6 +109,97 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
 
     return blocks;
+  };
+
+  // 提取当前blocks中的图片数据
+  const extractImagesFromBlocks = (blocks: ContentBlock[]): ImageData[] => {
+    return blocks
+      .filter(block => block.type === 'image')
+      .map(block => ({
+        id: block.id,
+        src: block.content,
+        alt: block.alt || '图片'
+      }));
+  };
+
+  // 保存图片到本地缓存（防抖处理）
+  const saveImagesToCacheDebounced = () => {
+    if (localSaveTimeoutRef.current) {
+      clearTimeout(localSaveTimeoutRef.current);
+    }
+
+    localSaveTimeoutRef.current = setTimeout(() => {
+      const images = extractImagesFromBlocks(blocks);
+      if (images.length > 0) {
+        saveImagesToCache(images);
+      }
+    }, 2000); // 2秒防抖
+  };
+
+  // 加载图片缓存
+  const loadCachedImages = () => {
+    const items = loadImageCache();
+    setCachedImages(items);
+  };
+
+  // 从缓存中恢复图片到编辑器
+  const restoreImageFromCache = (cacheItem: ImageCacheItem) => {
+    // 在当前焦点位置插入图片
+    insertImageAtBlock(focusedBlockId, cacheItem.src, cacheItem.alt);
+    setShowHistorySidebar(false);
+  };
+
+  // 清除图片缓存
+  const handleClearImageCache = async () => {
+    if (window.confirm('确定要清除所有图片缓存吗？此操作将同时删除服务器上的图片文件，无法撤销。')) {
+      try {
+        // 获取所有缓存图片的URL
+        const imageSrcs = cachedImages.map(item => item.src);
+
+        // 批量删除服务器上的图片文件
+        if (imageSrcs.length > 0) {
+          const deleteResult = await batchDeleteImagesFromServer(imageSrcs);
+          if (!deleteResult.success) {
+            console.warn('部分服务器图片删除失败，但仍会清除本地缓存');
+          }
+        }
+
+        // 清除本地缓存
+        clearImageCache();
+        setCachedImages([]);
+        setShowHistorySidebar(false);
+
+        console.log('图片缓存清除完成');
+      } catch (error) {
+        console.error('清除图片缓存时发生错误:', error);
+        // 即使服务器删除失败，也清除本地缓存
+        clearImageCache();
+        setCachedImages([]);
+        setShowHistorySidebar(false);
+      }
+    }
+  };
+
+  // 删除单个缓存图片
+  const handleRemoveImageFromCache = async (imageId: string, imageSrc: string) => {
+    try {
+      // 删除服务器上的图片文件
+      const serverDeleteSuccess = await deleteImageFromServer(imageSrc);
+      if (!serverDeleteSuccess) {
+        console.warn('服务器图片删除失败，但仍会删除本地缓存');
+      }
+
+      // 删除本地缓存
+      removeImageFromCache(imageId);
+      loadCachedImages(); // 刷新缓存列表
+
+      console.log('图片删除完成');
+    } catch (error) {
+      console.error('删除图片时发生错误:', error);
+      // 即使服务器删除失败，也删除本地缓存
+      removeImageFromCache(imageId);
+      loadCachedImages();
+    }
   };
 
   // 加载数据
@@ -302,6 +398,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 初始化
   useEffect(() => {
     loadData();
+    loadCachedImages(); // 加载图片缓存
 
     // 加载保存的设置
     const savedMode = localStorage.getItem('nano-board-markdown-mode');
@@ -317,10 +414,16 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         clearTimeout(saveTimeoutRef.current);
       }
       saveTimeoutRef.current = setTimeout(saveData, 1000);
+
+      // 同时触发图片缓存保存
+      saveImagesToCacheDebounced();
     }
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+      }
+      if (localSaveTimeoutRef.current) {
+        clearTimeout(localSaveTimeoutRef.current);
       }
     };
   }, [blocks, isLoading]);
@@ -458,7 +561,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const hasImageBlocks = blocks.some(block => block.type === 'image');
 
   // 自动调整文本框高度 - 优化即时切换
-  const adjustTextareaHeight = (textarea: HTMLTextAreaElement, content: string) => {
+  const adjustTextareaHeight = (textarea: HTMLTextAreaElement, _content: string) => {
     if (!hasImageBlocks) {
       // 页面中没有图片时，始终保持页面高度，无论是否有内容
       textarea.style.height = 'calc(100vh - 200px)';
@@ -573,7 +676,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             src={src}
             alt={alt}
             className="max-w-full h-auto rounded-lg shadow-sm"
-            style={{ maxHeight: '600px' }}
+            style={{
+              maxHeight: '300px',
+              objectFit: 'contain'
+            }}
             {...rest}
           />
         </div>
@@ -638,6 +744,20 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* 图片缓存按钮 */}
+          <button
+            onClick={() => {
+              setShowHistorySidebar(!showHistorySidebar);
+              if (!showHistorySidebar) {
+                loadCachedImages(); // 打开时刷新图片缓存
+              }
+            }}
+            className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+            title="查看图片缓存"
+          >
+            历史
+          </button>
+
           {isUploadingImage && (
             <div className="flex items-center gap-2 text-orange-600">
               <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
@@ -709,6 +829,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             adjustTextareaHeight(target, block.content);
                           }, 0);
                         }}
+                        onBlur={() => {
+                          // 失去焦点时立即保存图片到缓存
+                          const images = extractImagesFromBlocks(blocks);
+                          if (images.length > 0) {
+                            saveImagesToCache(images);
+                            loadCachedImages(); // 刷新图片缓存列表
+                          }
+                        }}
                         className={cn(
                           "w-full p-3 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-white",
                           focusedBlockId === block.id
@@ -750,7 +878,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                         <span className="text-xs font-bold">×</span>
                       </button>
 
-                      {/* 图片容器 - 优化为原图尺寸显示 */}
+                      {/* 图片容器 - 限制最大高度300px */}
                       <div className="relative inline-block bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 max-w-full">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -758,6 +886,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                           alt={block.alt || '图片'}
                           className="max-w-full h-auto block"
                           style={{
+                            maxHeight: '300px',
                             width: 'auto',
                             height: 'auto',
                             objectFit: 'contain'
@@ -802,6 +931,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 }}
                 onPaste={(e) => handlePaste(e, focusedBlockId)}
                 onKeyDown={(e) => handleKeyDown(e, focusedBlockId)}
+                onBlur={() => {
+                  // 失去焦点时立即保存图片到缓存
+                  const images = extractImagesFromBlocks(blocks);
+                  if (images.length > 0) {
+                    saveImagesToCache(images);
+                    loadCachedImages(); // 刷新图片缓存列表
+                  }
+                }}
                 className="w-full h-full p-8 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-white"
                 placeholder="开始输入Markdown内容，支持粘贴图片..."
                 spellCheck={false}
@@ -831,6 +968,94 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           </div>
         )}
       </div>
+
+      {/* 图片缓存侧边栏 */}
+      {showHistorySidebar && (
+        <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right border-l border-gray-200">
+          {/* 侧边栏头部 */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-lg font-semibold text-gray-900">图片缓存</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearImageCache}
+                className="px-3 py-1.5 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                title="清除所有图片缓存"
+              >
+                清除缓存
+              </button>
+              <button
+                onClick={() => setShowHistorySidebar(false)}
+                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
+                title="关闭"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          {/* 图片缓存列表 */}
+          <div className="flex-1 overflow-auto p-4">
+            {cachedImages.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <div className="text-4xl mb-4">🖼️</div>
+                <p>暂无图片缓存</p>
+                <p className="text-sm mt-2">上传图片后会自动保存到缓存</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cachedImages.map((image) => (
+                  <div
+                    key={image.id}
+                    className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
+                  >
+                    {/* 图片项头部 */}
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
+                        {image.alt || '未命名图片'}
+                      </h4>
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="text-xs text-gray-500 flex-shrink-0">
+                          {formatTimestamp(image.timestamp)}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImageFromCache(image.id, image.src);
+                          }}
+                          className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                          title="删除此图片缓存"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 图片预览 */}
+                    <div className="mb-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.src}
+                        alt={image.alt}
+                        className="w-full h-32 object-cover rounded border border-gray-200"
+                      />
+                    </div>
+
+                    {/* 操作按钮 */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => restoreImageFromCache(image)}
+                        className="flex-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                      >
+                        插入到编辑器
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
