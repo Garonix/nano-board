@@ -43,6 +43,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  // Markdown分栏同步滚动相关引用
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const scrollSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isScrollingSyncRef = useRef(false); // 防止滚动同步无限循环
+
   // 将blocks转换为文本内容（用于保存）
   const blocksToContent = (blocks: ContentBlock[]): string => {
     return blocks.map(block => {
@@ -310,21 +316,56 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
       }
 
-      return newBlocks;
+      // 确保普通模式下末尾有文本框
+      return ensureEndingTextBlock(newBlocks);
     });
   };
 
-  // 清空所有内容
-  const clearAllContent = () => {
-    if (window.confirm('确定要清空所有内容吗？此操作无法撤销。')) {
+  // 清空所有内容 - 同时清空对应的数据文件
+  const clearAllContent = async () => {
+    if (window.confirm('确定要清空所有内容吗？此操作将同时清空数据文件，无法撤销。')) {
+      try {
+        // 清空前端状态
+        const newTextBlock: ContentBlock = {
+          id: Date.now().toString(),
+          type: 'text',
+          content: ''
+        };
+        setBlocks([newTextBlock]);
+        setFocusedBlockId(newTextBlock.id);
+
+        // 清空对应模式的数据文件
+        const mode = isMarkdownMode ? 'markdown' : 'normal';
+        await fetch('/api/board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: '', mode }),
+        });
+
+        console.log(`${mode === 'normal' ? '普通模式' : 'Markdown模式'}数据文件已清空`);
+      } catch (error) {
+        console.error('清空数据文件失败:', error);
+        // 即使API调用失败，前端状态已经清空，不影响用户体验
+      }
+    }
+  };
+
+  // 确保普通模式下末尾始终有文本框
+  const ensureEndingTextBlock = (blocks: ContentBlock[]): ContentBlock[] => {
+    // 只在普通模式下执行此检查
+    if (isMarkdownMode) return blocks;
+
+    // 如果没有块或最后一个块不是文本块，添加文本块
+    if (blocks.length === 0 || blocks[blocks.length - 1].type !== 'text') {
       const newTextBlock: ContentBlock = {
         id: Date.now().toString(),
         type: 'text',
         content: ''
       };
-      setBlocks([newTextBlock]);
-      setFocusedBlockId(newTextBlock.id);
+      return [...blocks, newTextBlock];
     }
+
+    return blocks;
   };
 
   // 删除空文本块（当不是唯一块时）
@@ -336,8 +377,77 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       const block = prev.find(b => b.id === blockId);
       if (!block || block.type !== 'text' || block.content.trim()) return prev;
 
-      return prev.filter(b => b.id !== blockId);
+      const newBlocks = prev.filter(b => b.id !== blockId);
+      // 确保末尾有文本框
+      return ensureEndingTextBlock(newBlocks);
     });
+  };
+
+  // Markdown分栏同步滚动功能
+  const syncScrollFromEditor = () => {
+    if (!editorRef.current || !previewRef.current || isScrollingSyncRef.current) return;
+
+    const editor = editorRef.current;
+    const preview = previewRef.current;
+
+    // 计算编辑器的滚动比例
+    const scrollTop = editor.scrollTop;
+    const scrollHeight = editor.scrollHeight - editor.clientHeight;
+    const scrollRatio = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+
+    // 应用到预览区域
+    const previewScrollHeight = preview.scrollHeight - preview.clientHeight;
+    const targetScrollTop = previewScrollHeight * scrollRatio;
+
+    // 设置同步标志，防止无限循环
+    isScrollingSyncRef.current = true;
+
+    // 平滑滚动到目标位置
+    preview.scrollTo({
+      top: targetScrollTop,
+      behavior: 'auto' // 使用auto而不是smooth，避免延迟
+    });
+
+    // 清除同步标志（使用防抖）
+    if (scrollSyncTimeoutRef.current) {
+      clearTimeout(scrollSyncTimeoutRef.current);
+    }
+    scrollSyncTimeoutRef.current = setTimeout(() => {
+      isScrollingSyncRef.current = false;
+    }, 50);
+  };
+
+  const syncScrollFromPreview = () => {
+    if (!editorRef.current || !previewRef.current || isScrollingSyncRef.current) return;
+
+    const editor = editorRef.current;
+    const preview = previewRef.current;
+
+    // 计算预览区域的滚动比例
+    const scrollTop = preview.scrollTop;
+    const scrollHeight = preview.scrollHeight - preview.clientHeight;
+    const scrollRatio = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+
+    // 应用到编辑器
+    const editorScrollHeight = editor.scrollHeight - editor.clientHeight;
+    const targetScrollTop = editorScrollHeight * scrollRatio;
+
+    // 设置同步标志，防止无限循环
+    isScrollingSyncRef.current = true;
+
+    // 平滑滚动到目标位置
+    editor.scrollTo({
+      top: targetScrollTop,
+      behavior: 'auto' // 使用auto而不是smooth，避免延迟
+    });
+
+    // 清除同步标志（使用防抖）
+    if (scrollSyncTimeoutRef.current) {
+      clearTimeout(scrollSyncTimeoutRef.current);
+    }
+    scrollSyncTimeoutRef.current = setTimeout(() => {
+      isScrollingSyncRef.current = false;
+    }, 50);
   };
 
   // 在Markdown模式下插入图片
@@ -359,6 +469,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     const newBlocks = contentToBlocks(newValue);
     setBlocks(newBlocks);
 
+    // 立即保存图片到缓存（Markdown模式）
+    const images = extractImagesFromBlocks(newBlocks);
+    if (images.length > 0) {
+      saveImagesToCache(images);
+      loadCachedImages(); // 刷新图片缓存列表
+    }
+
     // 设置光标位置到图片语法后
     setTimeout(() => {
       const newCursorPos = start + imageMarkdown.length;
@@ -367,8 +484,45 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }, 0);
   };
 
-  // 在指定位置插入图片
+  // 在普通模式下将图片添加到页面末尾
+  const insertImageAtEnd = (imageSrc: string, altText: string) => {
+    setBlocks(prev => {
+      const newBlocks = [...prev];
+
+      // 创建图片块
+      const imageBlock: ContentBlock = {
+        id: Date.now().toString(),
+        type: 'image',
+        content: imageSrc,
+        alt: altText
+      };
+
+      // 创建新的文本块
+      const newTextBlock: ContentBlock = {
+        id: (Date.now() + 1).toString(),
+        type: 'text',
+        content: ''
+      };
+
+      // 将图片和文本块添加到末尾
+      newBlocks.push(imageBlock, newTextBlock);
+
+      // 设置焦点到新文本块
+      setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
+
+      return newBlocks;
+    });
+  };
+
+  // 在指定位置插入图片（保留原函数用于兼容性，但在普通模式下重定向到末尾插入）
   const insertImageAtBlock = (blockId: string, imageSrc: string, altText: string) => {
+    // 普通模式下统一将图片添加到末尾
+    if (!isMarkdownMode) {
+      insertImageAtEnd(imageSrc, altText);
+      return;
+    }
+
+    // Markdown模式保持原有逻辑（实际上Markdown模式不会调用此函数）
     setBlocks(prev => {
       const blockIndex = prev.findIndex(block => block.id === blockId);
       if (blockIndex === -1) return prev;
@@ -422,7 +576,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
       }
 
-      return newBlocks;
+      return ensureEndingTextBlock(newBlocks);
     });
   };
 
@@ -615,6 +769,15 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     return () => {
       if (dragTimeoutRef.current) {
         clearTimeout(dragTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // 清理滚动同步定时器
+  useEffect(() => {
+    return () => {
+      if (scrollSyncTimeoutRef.current) {
+        clearTimeout(scrollSyncTimeoutRef.current);
       }
     };
   }, []);
@@ -1189,15 +1352,16 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           </div>
         )}
 
-        {/* Markdown模式 */}
+        {/* Markdown模式 - 改进分栏布局和同步滚动 */}
         {isMarkdownMode && (
           <div className="flex w-full h-full">
             {/* 编辑区域 */}
             <div className={cn(
-              'bg-white',
+              'bg-white flex flex-col',
               showMarkdownPreview ? 'flex-1 border-r border-gray-200' : 'w-full'
             )}>
               <textarea
+                ref={editorRef}
                 value={blocksToContent(blocks)}
                 onChange={(e) => {
                   const newBlocks = contentToBlocks(e.target.value);
@@ -1205,6 +1369,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 }}
                 onPaste={(e) => handlePaste(e, focusedBlockId)}
                 onKeyDown={handleMarkdownKeyDown}
+                onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
                 onBlur={() => {
                   // 失去焦点时立即保存图片到缓存
                   const images = extractImagesFromBlocks(blocks);
@@ -1213,16 +1378,28 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                     loadCachedImages(); // 刷新图片缓存列表
                   }
                 }}
-                className="w-full h-full p-8 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-white"
+                className="w-full h-full p-8 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-white overflow-auto"
                 placeholder="开始输入Markdown内容，支持粘贴图片..."
                 spellCheck={false}
+                style={{
+                  minHeight: '100%',
+                  height: '100%'
+                }}
               />
             </div>
 
             {/* 预览区域 */}
             {showMarkdownPreview && (
-              <div className="flex-1 bg-gray-50">
-                <div className="h-full overflow-auto p-8">
+              <div className="flex-1 bg-gray-50 flex flex-col">
+                <div
+                  ref={previewRef}
+                  className="h-full overflow-auto p-8"
+                  onScroll={syncScrollFromPreview}
+                  style={{
+                    minHeight: '100%',
+                    height: '100%'
+                  }}
+                >
                   {blocksToContent(blocks).trim() ? (
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
