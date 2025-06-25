@@ -125,7 +125,7 @@ export const useKeyboardHandlers = (
       setShowMarkdownPreview(!showMarkdownPreview);
     }
 
-    // Backspace 键处理：只在特定条件下删除空文本块
+    // Backspace 键处理：只在特定条件下删除空文本块（优化焦点管理：删除后不自动设置焦点）
     if (e.key === 'Backspace') {
       const textarea = e.target as HTMLTextAreaElement;
       const currentBlock = blocks.find(block => block.id === blockId);
@@ -145,22 +145,23 @@ export const useKeyboardHandlers = (
         e.preventDefault();
         deleteEmptyTextBlock(blockId);
 
-        // 将焦点移动到前一个文本块的末尾
-        const currentIndex = blocks.findIndex(block => block.id === blockId);
-        if (currentIndex > 0) {
-          const prevBlock = blocks[currentIndex - 1];
-          if (prevBlock.type === 'text') {
-            setTimeout(() => {
-              setFocusedBlockId(prevBlock.id);
-              const prevTextarea = document.querySelector(`textarea[data-block-id="${prevBlock.id}"]`) as HTMLTextAreaElement;
-              if (prevTextarea) {
-                const length = prevBlock.content.length;
-                prevTextarea.setSelectionRange(length, length);
-                prevTextarea.focus();
-              }
-            }, 0);
-          }
-        }
+        // 移除自动设置焦点的逻辑，让页面处于无焦点状态
+        // 用户需要手动点击其他文本框才能继续编辑
+        // const currentIndex = blocks.findIndex(block => block.id === blockId);
+        // if (currentIndex > 0) {
+        //   const prevBlock = blocks[currentIndex - 1];
+        //   if (prevBlock.type === 'text') {
+        //     setTimeout(() => {
+        //       setFocusedBlockId(prevBlock.id);
+        //       const prevTextarea = document.querySelector(`textarea[data-block-id="${prevBlock.id}"]`) as HTMLTextAreaElement;
+        //       if (prevTextarea) {
+        //         const length = prevBlock.content.length;
+        //         prevTextarea.setSelectionRange(length, length);
+        //         prevTextarea.focus();
+        //       }
+        //     }, 0);
+        //   }
+        // }
       }
     }
 

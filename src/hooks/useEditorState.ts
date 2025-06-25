@@ -35,7 +35,7 @@ export const useEditorState = () => {
     ));
   }, []);
 
-  // 删除指定块
+  // 删除指定块（优化焦点管理：删除后不自动设置焦点）
   const deleteBlock = useCallback((blockId: string) => {
     setBlocks(prev => {
       const blockIndex = prev.findIndex(block => block.id === blockId);
@@ -65,26 +65,27 @@ export const useEditorState = () => {
           };
           newBlocks.splice(blockIndex, 1);
 
-          // 设置焦点到合并后的文本块
-          setTimeout(() => setFocusedBlockId(prevBlock.id), 0);
-        } else if (prevBlock && prevBlock.type === 'text') {
-          // 设置焦点到前一个文本块
-          setTimeout(() => setFocusedBlockId(prevBlock.id), 0);
-        } else if (nextBlock && nextBlock.type === 'text') {
-          // 设置焦点到后一个文本块
-          setTimeout(() => setFocusedBlockId(nextBlock.id), 0);
+          // 移除自动设置焦点的逻辑，让用户手动选择焦点
+          // setTimeout(() => setFocusedBlockId(prevBlock.id), 0);
         }
-      } else {
-        // 删除文本块时，设置焦点到相邻块
-        const remainingBlocks = newBlocks;
-        if (remainingBlocks.length > 0) {
-          const targetIndex = Math.min(blockIndex, remainingBlocks.length - 1);
-          const targetBlock = remainingBlocks[targetIndex];
-          if (targetBlock && targetBlock.type === 'text') {
-            setTimeout(() => setFocusedBlockId(targetBlock.id), 0);
-          }
-        }
+        // 移除其他自动设置焦点的逻辑
+        // } else if (prevBlock && prevBlock.type === 'text') {
+        //   setTimeout(() => setFocusedBlockId(prevBlock.id), 0);
+        // } else if (nextBlock && nextBlock.type === 'text') {
+        //   setTimeout(() => setFocusedBlockId(nextBlock.id), 0);
+        // }
       }
+      // 移除文本块删除时的自动焦点设置逻辑
+      // } else {
+      //   const remainingBlocks = newBlocks;
+      //   if (remainingBlocks.length > 0) {
+      //     const targetIndex = Math.min(blockIndex, remainingBlocks.length - 1);
+      //     const targetBlock = remainingBlocks[targetIndex];
+      //     if (targetBlock && targetBlock.type === 'text') {
+      //       setTimeout(() => setFocusedBlockId(targetBlock.id), 0);
+      //     }
+      //   }
+      // }
 
       // 确保至少有一个文本块
       if (newBlocks.length === 0) {
@@ -94,7 +95,11 @@ export const useEditorState = () => {
           content: ''
         };
         newBlocks.push(newTextBlock);
+        // 只有在页面完全为空时才设置焦点，其他情况让用户手动选择
         setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
+      } else {
+        // 删除块后清除焦点状态，让页面处于无焦点状态
+        setFocusedBlockId('');
       }
 
       return newBlocks;
@@ -120,7 +125,7 @@ export const useEditorState = () => {
     return blocks;
   }, [isMarkdownMode]);
 
-  // 删除空文本块（当不是唯一块时）
+  // 删除空文本块（当不是唯一块时，优化焦点管理：删除后不自动设置焦点）
   const deleteEmptyTextBlock = useCallback((blockId: string) => {
     setBlocks(prev => {
       // 只有在有多个块且当前块为空时才删除
@@ -130,6 +135,10 @@ export const useEditorState = () => {
       if (!block || block.type !== 'text' || block.content.trim()) return prev;
 
       const newBlocks = prev.filter(b => b.id !== blockId);
+
+      // 删除空文本块后清除焦点状态，让页面处于无焦点状态
+      setFocusedBlockId('');
+
       // 确保至少有一个文本块
       return ensureMinimumTextBlock(newBlocks);
     });

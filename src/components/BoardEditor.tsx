@@ -406,7 +406,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                 className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
                                 title="删除此文本框"
                               >
-                                ×
+                                {/* 使用简单的红叉图标 */}
+                                ✕
                               </button>
                             ) : (
                               // 非空文本框显示完整按钮组
@@ -414,24 +415,27 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                 <button
                                   onClick={() => handleSaveText(block.content)}
                                   disabled={isSavingText}
-                                  className="w-5 h-5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
-                                  title="保存此文本到文件"
+                                  className="w-5 h-5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center font-bold"
+                                  title="保存"
                                 >
-                                  {isSavingText ? '...' : '💾'}
+                                  {/* 使用简单的下箭头图标表示保存 */}
+                                  {isSavingText ? '...' : '↓'}
                                 </button>
                                 <button
                                   onClick={() => clearTextBlockContent(block.id)}
-                                  className="w-5 h-5 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
-                                  title="清空此文本框内容"
+                                  className="w-5 h-5 bg-orange-500 hover:bg-orange-600 text-white text-s rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
+                                  title="清空"
                                 >
-                                  🗑️
+                                  {/* 使用简单的循环符号表示清空重置 */}
+                                  ↻
                                 </button>
                                 <button
                                   onClick={() => deleteBlock(block.id)}
                                   className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
-                                  title="删除此文本框"
+                                  title="删除"
                                 >
-                                  ×
+                                  {/* 使用简单的红叉图标 */}
+                                  ✕
                                 </button>
                               </>
                             )}
@@ -553,9 +557,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                         <button
                           onClick={() => addTextBlockAfter(block.id)}
                           className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg hover:scale-110 opacity-0 group-hover:opacity-100"
-                          title="在下方新建文本框"
                           style={{
-                            top: block.type === 'text' ? '-5px' : '-23px' // 紧贴文本框下边框或图片容器下边缘
+                            top: block.type === 'text' ? '-6px' : '-23px' // 紧贴文本框下边框或图片容器下边缘
                           }}
                         >
                           <span className="text-sm font-bold leading-none">+</span>
