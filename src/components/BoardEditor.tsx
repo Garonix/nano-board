@@ -480,7 +480,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             }
                           }}
                           className={cn(
-                            "w-full p-3 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-white",
+                            "w-full p-3 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-white textarea-no-scrollbar",
                             focusedBlockId === block.id
                               ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-20 shadow-sm"
                               : "border-gray-200 hover:border-gray-300",
@@ -506,7 +506,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             maxHeight: !hasImageBlocks
                               ? 'calc(100vh - 200px)'
                               : 'none',
-                            overflow: 'hidden' // 彻底禁用滚动条
+                            overflowY: 'auto' // 启用垂直滚动，支持滚轮操作
                           }}
                         />
                       </div>
@@ -598,7 +598,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                     loadCachedImages(); // 刷新图片缓存列表
                   }
                 }}
-                className="w-full h-full p-8 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-white overflow-auto"
+                className="w-full h-full p-8 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-white overflow-auto textarea-no-scrollbar"
                 placeholder="开始输入Markdown内容，支持粘贴图片..."
                 spellCheck={false}
                 style={{

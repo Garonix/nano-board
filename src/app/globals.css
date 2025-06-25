@@ -72,6 +72,18 @@ html, body, #__next {
   background-color: rgba(59, 130, 246, 0.3);
 }
 
+/* 文本框隐藏滚动条但保持滚动功能 */
+.textarea-no-scrollbar {
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* 隐藏 WebKit 浏览器的滚动条 */
+.textarea-no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* 图片加载动画优化 */
 .image-loading {
   background: linear-gradient(90deg, #f8fafc 25%, #f1f5f9 50%, #f8fafc 75%);
