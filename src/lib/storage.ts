@@ -116,12 +116,9 @@ export async function loadBoardContent(mode: BoardMode = 'normal'): Promise<stri
     const filePath = getBoardFilePath(mode);
     const data = await fs.readFile(filePath, 'utf-8');
     const boardData: BoardContent = JSON.parse(data);
-
-    console.log(`${mode === 'normal' ? '普通模式' : 'Markdown模式'}白板内容已从本地文件加载`);
     return boardData.content || '';
   } catch {
     // 文件不存在或读取失败时返回空内容
-    console.log(`未找到${mode === 'normal' ? '普通模式' : 'Markdown模式'}白板文件，返回空内容`);
     return '';
   }
 }

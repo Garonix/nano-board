@@ -7,38 +7,46 @@
  * 自动调整文本框高度 - 优化即时切换
  * @param textarea 文本框元素
  * @param _content 内容（保留参数用于兼容性）
- * @param hasImageBlocks 是否包含图片块
+ * @param isSingleTextBlock 是否为单个文本框场景
+ *
+ * 高度规则：
+ * - 单个文本框：锁定高度为25rem
+ * - 多个文本框或包含图片：最小2.5rem，最大10rem，根据内容自适应
  */
 export const adjustTextareaHeight = (
-  textarea: HTMLTextAreaElement, 
-  _content: string, 
-  hasImageBlocks: boolean
+  textarea: HTMLTextAreaElement,
+  _content: string,
+  isSingleTextBlock: boolean
 ) => {
-  if (!hasImageBlocks) {
-    // 页面中没有图片时，始终保持页面高度，无论是否有内容
-    textarea.style.height = 'calc(100vh - 200px)';
-    textarea.style.minHeight = 'calc(100vh - 200px)';
-    textarea.style.maxHeight = 'calc(100vh - 200px)';
+  if (isSingleTextBlock) {
+    // 单个文本框时，锁定高度为25rem
+    textarea.style.height = '25rem';
+    textarea.style.minHeight = '25rem';
+    textarea.style.maxHeight = '25rem';
     textarea.style.transition = 'none'; // 禁用过渡动画确保即时切换
+    textarea.style.overflowY = 'auto'; // 确保超出时显示滚动条
   } else {
-    // 页面中有图片时，根据内容动态调整高度
+    // 多个文本框或包含图片时，根据内容动态调整高度，最大高度限制为10rem
     textarea.style.height = 'auto';
     textarea.style.minHeight = '2.5rem';
-    textarea.style.maxHeight = 'none';
+    textarea.style.maxHeight = '10rem';
     textarea.style.transition = 'none'; // 禁用过渡动画确保即时切换
+    textarea.style.overflowY = 'auto'; // 确保超出时显示滚动条
     const newHeight = Math.max(textarea.scrollHeight, 40);
-    textarea.style.height = `${newHeight}px`;
+    // 限制最大高度为10rem (160px，假设1rem=16px)
+    const maxHeightPx = 160;
+    textarea.style.height = `${Math.min(newHeight, maxHeightPx)}px`;
   }
 };
 
 /**
  * 批量更新所有文本框高度
- * @param hasImageBlocks 是否包含图片块
+ * @param isSingleTextBlock 是否为单个文本框场景
  */
-export const updateAllTextareasHeight = (hasImageBlocks: boolean) => {
+export const updateAllTextareasHeight = (isSingleTextBlock: boolean) => {
   const textareas = document.querySelectorAll('textarea');
   textareas.forEach((textarea) => {
     const textareaElement = textarea as HTMLTextAreaElement;
-    adjustTextareaHeight(textareaElement, textareaElement.value, hasImageBlocks);
+    adjustTextareaHeight(textareaElement, textareaElement.value, isSingleTextBlock);
   });
 };

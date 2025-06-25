@@ -234,8 +234,10 @@ export const useEditorState = () => {
     }
   }, [ensureMinimumTextBlock]);
 
-  // 检查页面是否包含图片块
-  const hasImageBlocks = blocks.some(block => block.type === 'image');
+  // 检查是否为单个文本框场景（只有一个文本框且无图片）
+  const isSingleTextBlock = blocks.length === 1 &&
+                           blocks[0].type === 'text' &&
+                           !blocks.some(block => block.type === 'image');
 
   // 组合状态对象
   const editorState: EditorState = {
@@ -255,7 +257,7 @@ export const useEditorState = () => {
   return {
     // 状态
     editorState,
-    hasImageBlocks,
+    isSingleTextBlock,
 
     // 状态更新函数
     setBlocks,

@@ -28,7 +28,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 使用自定义 Hooks 管理状态和逻辑
   const {
     editorState,
-    hasImageBlocks,
+    isSingleTextBlock,
     setBlocks,
     setIsMarkdownMode,
     setShowMarkdownPreview,
@@ -261,10 +261,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     };
   }, [cleanupDragAndDrop, cleanupScrollSync, cleanupDataPersistence]);
 
-  // 当图片状态改变时，立即更新所有文本框高度
+  // 当文本框布局状态改变时，立即更新所有文本框高度
   useEffect(() => {
-    updateAllTextareasHeight(hasImageBlocks);
-  }, [hasImageBlocks]); // 依赖图片状态，确保即时更新
+    updateAllTextareasHeight(isSingleTextBlock);
+  }, [isSingleTextBlock]); // 依赖单个文本框状态，确保即时更新
 
 
 
@@ -447,7 +447,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             if (el && focusedBlockId === block.id) {
                               // 当获得焦点时自动调整高度
                               setTimeout(() => {
-                                adjustTextareaHeight(el, block.content, hasImageBlocks);
+                                adjustTextareaHeight(el, block.content, isSingleTextBlock);
                               }, 0);
                             }
                           }}
@@ -459,7 +459,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
                             // 智能调整高度
                             const target = e.target as HTMLTextAreaElement;
-                            adjustTextareaHeight(target, newContent, hasImageBlocks);
+                            adjustTextareaHeight(target, newContent, isSingleTextBlock);
                           }}
                           onPaste={handleImagePaste}
                           onKeyDown={(e) => handleKeyDown(e, block.id)}
@@ -468,7 +468,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             // 聚焦时调整高度
                             const target = e.target as HTMLTextAreaElement;
                             setTimeout(() => {
-                              adjustTextareaHeight(target, block.content, hasImageBlocks);
+                              adjustTextareaHeight(target, block.content, isSingleTextBlock);
                             }, 0);
                           }}
                           onBlur={() => {
@@ -484,9 +484,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             focusedBlockId === block.id
                               ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-20 shadow-sm"
                               : "border-gray-200 hover:border-gray-300",
-                            !hasImageBlocks
-                              ? "min-h-[calc(100vh-200px)]"
-                              : "min-h-[2.5rem]"
+                            isSingleTextBlock
+                              ? "min-h-[25rem] max-h-[25rem]"
+                              : "min-h-[2.5rem] max-h-[10rem]"
                           )}
                           placeholder={
                             index === 0 && !block.content
@@ -497,15 +497,15 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                           }
                           spellCheck={false}
                           style={{
-                            height: !hasImageBlocks
-                              ? 'calc(100vh - 200px)'
+                            height: isSingleTextBlock
+                              ? '25rem'
                               : 'auto',
-                            minHeight: !hasImageBlocks
-                              ? 'calc(100vh - 200px)'
+                            minHeight: isSingleTextBlock
+                              ? '25rem'
                               : '2.5rem',
-                            maxHeight: !hasImageBlocks
-                              ? 'calc(100vh - 200px)'
-                              : 'none',
+                            maxHeight: isSingleTextBlock
+                              ? '25rem'
+                              : '10rem',
                             overflowY: 'auto' // 启用垂直滚动，支持滚轮操作
                           }}
                         />
