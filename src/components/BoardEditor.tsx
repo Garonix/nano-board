@@ -572,67 +572,75 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           </div>
         )}
 
-        {/* Markdown模式 - 改进分栏布局和同步滚动 */}
+        {/* Markdown模式 - 改进分栏布局和同步滚动，添加与普通模式一致的边框样式 */}
         {isMarkdownMode && (
-          <div className="flex w-full h-full">
-            {/* 编辑区域 */}
+          <div className="flex w-full h-full p-2">
+            {/* 编辑区域 - 添加边框容器 */}
             <div className={cn(
-              'bg-white flex flex-col',
-              showMarkdownPreview ? 'flex-1 border-r border-gray-200' : 'w-full'
+              'flex flex-col',
+              showMarkdownPreview ? 'flex-1 mr-2' : 'w-full'
             )}>
-              <textarea
-                ref={editorRef}
-                value={blocksToContent(blocks)}
-                onChange={(e) => {
-                  const newBlocks = contentToBlocks(e.target.value);
-                  setBlocks(newBlocks);
-                }}
-                onPaste={handleImagePaste}
-                onKeyDown={handleMarkdownKeyDown}
-                onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
-                onBlur={() => {
-                  // 失去焦点时立即保存图片到缓存
-                  const images = extractImagesFromBlocks(blocks);
-                  if (images.length > 0) {
-                    saveImagesToCache(images);
-                    loadCachedImages(); // 刷新图片缓存列表
-                  }
-                }}
-                className="w-full h-full p-8 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-white overflow-auto textarea-no-scrollbar"
-                placeholder="开始输入Markdown内容，支持粘贴图片..."
-                spellCheck={false}
-                style={{
-                  minHeight: '100%',
-                  height: '100%'
-                }}
-              />
+              {/* 文本编辑区域容器 - 应用与普通模式相同的边框样式 */}
+              <div className="h-full border rounded-lg bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-20 shadow-sm transition-all duration-200">
+                <textarea
+                  ref={editorRef}
+                  value={blocksToContent(blocks)}
+                  onChange={(e) => {
+                    const newBlocks = contentToBlocks(e.target.value);
+                    setBlocks(newBlocks);
+                  }}
+                  onPaste={handleImagePaste}
+                  onKeyDown={handleMarkdownKeyDown}
+                  onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
+                  onBlur={() => {
+                    // 失去焦点时立即保存图片到缓存
+                    const images = extractImagesFromBlocks(blocks);
+                    if (images.length > 0) {
+                      saveImagesToCache(images);
+                      loadCachedImages(); // 刷新图片缓存列表
+                    }
+                  }}
+                  className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg"
+                  placeholder="开始输入Markdown内容，支持粘贴图片..."
+                  spellCheck={false}
+                  style={{
+                    minHeight: 'calc(100vh - 140px)', // 设置接近完整页面高度
+                    height: 'calc(100vh - 140px)',    // 与单个文本框类似的高度
+                    maxHeight: 'calc(100vh - 140px)'  // 限制最大高度
+                  }}
+                />
+              </div>
             </div>
 
-            {/* 预览区域 */}
+            {/* 预览区域 - 添加与编辑区域一致的边框样式 */}
             {showMarkdownPreview && (
-              <div className="flex-1 bg-gray-50 flex flex-col">
-                <div
-                  ref={previewRef}
-                  className="h-full overflow-auto p-8"
-                  onScroll={syncScrollFromPreview}
-                  style={{
-                    minHeight: '100%',
-                    height: '100%'
-                  }}
-                >
-                  {blocksToContent(blocks).trim() ? (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={markdownComponents}
-                      className="prose prose-sm max-w-none prose-gray"
-                    >
-                      {blocksToContent(blocks)}
-                    </ReactMarkdown>
-                  ) : (
-                    <div className="text-gray-400 text-sm">
-                      Markdown预览区域
-                    </div>
-                  )}
+              <div className="flex-1 flex flex-col ml-2">
+                {/* 预览区域容器 - 应用与编辑区域相同的边框样式 */}
+                <div className="h-full border rounded-lg bg-gray-50 border-gray-200 shadow-sm">
+                  <div
+                    ref={previewRef}
+                    className="h-full overflow-auto p-3"
+                    onScroll={syncScrollFromPreview}
+                    style={{
+                      minHeight: 'calc(100vh - 140px)', // 与编辑区域保持一致的高度
+                      height: 'calc(100vh - 140px)',
+                      maxHeight: 'calc(100vh - 140px)'
+                    }}
+                  >
+                    {blocksToContent(blocks).trim() ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                        className="prose prose-sm max-w-none prose-gray"
+                      >
+                        {blocksToContent(blocks)}
+                      </ReactMarkdown>
+                    ) : (
+                      <div className="text-gray-400 text-sm">
+                        Markdown预览区域
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

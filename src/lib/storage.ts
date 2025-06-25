@@ -96,9 +96,7 @@ export async function saveBoardContent(content: string, mode: BoardMode = 'norma
 
     const filePath = getBoardFilePath(mode);
     await fs.writeFile(filePath, JSON.stringify(boardData, null, 2), 'utf-8');
-    console.log(`${mode === 'normal' ? '普通模式' : 'Markdown模式'}白板内容已保存到本地文件`);
   } catch (error) {
-    console.error(`保存${mode === 'normal' ? '普通模式' : 'Markdown模式'}白板内容失败:`, error);
     throw error;
   }
 }
