@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn, formatTimestamp, saveImagesToCache } from '@/lib/utils';
@@ -22,6 +22,7 @@ import { useScrollSync } from '@/hooks/useScrollSync';
 import { useDataPersistence } from '@/hooks/useDataPersistence';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
+import { useTextManager } from '@/hooks/useTextManager';
 
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 使用自定义 Hooks 管理状态和逻辑
@@ -36,7 +37,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setIsDragOver,
     setFocusedBlockId,
     setShowHistorySidebar,
+    setHistorySidebarType,
     setCachedImages,
+    setTextHistory,
     updateBlockContent,
     deleteBlock,
     deleteEmptyTextBlock,
@@ -54,7 +57,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     isDragOver,
     focusedBlockId,
     showHistorySidebar,
-    cachedImages
+    historySidebarType,
+    cachedImages,
+    textHistory
   } = editorState;
 
   // 内容转换 Hook
@@ -115,8 +120,73 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     handleImageDrop
   );
 
+  // 文本管理 Hook
+  const {
+    saveTextToFile,
+    loadTextHistory,
+    getTextContent,
+    deleteTextFile,
+    clearAllTextFiles
+  } = useTextManager(setTextHistory);
+
   // 引用
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // 文本保存按钮状态
+  const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
+  const [isSavingText, setIsSavingText] = useState(false);
+
+  // 处理文本保存
+  const handleSaveText = async (content: string) => {
+    if (!content.trim()) {
+      alert('不能保存空白内容');
+      return;
+    }
+
+    setIsSavingText(true);
+    try {
+      const success = await saveTextToFile(content);
+      if (success) {
+        alert('文本保存成功！');
+      } else {
+        alert('文本保存失败，请重试');
+      }
+    } catch (error) {
+      console.error('保存文本时发生错误:', error);
+      alert('文本保存失败，请重试');
+    } finally {
+      setIsSavingText(false);
+    }
+  };
+
+  // 处理从文本历史恢复内容
+  const handleRestoreTextFromHistory = async (fileName: string) => {
+    try {
+      const content = await getTextContent(fileName);
+      if (content) {
+        // 在普通模式下，将内容添加到新的文本块
+        if (!isMarkdownMode) {
+          const newTextBlock = {
+            id: Date.now().toString(),
+            type: 'text' as const,
+            content
+          };
+          setBlocks(prev => [...prev, newTextBlock]);
+          setFocusedBlockId(newTextBlock.id);
+        } else {
+          // 在Markdown模式下，将内容添加到编辑器
+          const newBlocks = contentToBlocks(blocksToContent(blocks) + '\n\n' + content);
+          setBlocks(newBlocks);
+        }
+        setShowHistorySidebar(false);
+      } else {
+        alert('无法读取文本内容');
+      }
+    } catch (error) {
+      console.error('恢复文本时发生错误:', error);
+      alert('恢复文本失败，请重试');
+    }
+  };
 
 
 
@@ -133,13 +203,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 初始化
   useEffect(() => {
     loadCachedImages(); // 加载图片缓存
+    loadTextHistory(); // 加载文本历史
 
     // 加载保存的设置
     const savedMode = localStorage.getItem('nano-board-markdown-mode');
     const savedPreview = localStorage.getItem('nano-board-markdown-preview');
     if (savedMode) setIsMarkdownMode(savedMode === 'true');
     if (savedPreview) setShowMarkdownPreview(savedPreview === 'true');
-  }, [loadCachedImages, setIsMarkdownMode, setShowMarkdownPreview]);
+  }, [loadCachedImages, loadTextHistory, setIsMarkdownMode, setShowMarkdownPreview]);
 
   // 当模式切换时重新加载对应的数据
   useEffect(() => {
@@ -269,18 +340,19 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* 图片缓存按钮 */}
+          {/* 历史记录按钮 */}
           <button
             onClick={() => {
               setShowHistorySidebar(!showHistorySidebar);
               if (!showHistorySidebar) {
                 loadCachedImages(); // 打开时刷新图片缓存
+                loadTextHistory(); // 打开时刷新文本历史
               }
             }}
             className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-            title="查看图片缓存"
+            title="查看历史记录"
           >
-            历史图片
+            历史
           </button>
 
           {isUploadingImage && (
@@ -320,9 +392,26 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             <div className="max-w-none space-y-3 mx-auto px-5 md:px-[150px] xl:px-[300px] min-w-0">
               {blocks.map((block, index) => {
                 return (
-                  <div key={block.id} className="relative">
+                  <div key={block.id} className="relative group">
                     {block.type === 'text' ? (
-                      <textarea
+                      <div
+                        className="relative"
+                        onMouseEnter={() => setHoveredTextBlockId(block.id)}
+                        onMouseLeave={() => setHoveredTextBlockId(null)}
+                      >
+                        {/* 文本保存按钮 - 只在普通模式下显示，hover时出现 */}
+                        {!isMarkdownMode && block.content.trim() && hoveredTextBlockId === block.id && (
+                          <button
+                            onClick={() => handleSaveText(block.content)}
+                            disabled={isSavingText}
+                            className="absolute top-2 right-2 z-10 px-2 py-1 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-xs rounded-md shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
+                            title="保存此文本到文件"
+                          >
+                            {isSavingText ? '保存中...' : '保存'}
+                          </button>
+                        )}
+
+                        <textarea
                         ref={(el) => {
                           if (el && focusedBlockId === block.id) {
                             // 当获得焦点时自动调整高度
@@ -389,6 +478,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                           overflow: 'hidden' // 彻底禁用滚动条
                         }}
                       />
+                      </div>
                     ) : (
                     <div className="w-full text-center my-4">
                       {/* 图片容器 - 限制最大高度300px，修复删除按钮定位 */}
@@ -504,20 +594,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         )}
       </div>
 
-      {/* 图片缓存侧边栏 */}
+      {/* 历史侧边栏 */}
       {showHistorySidebar && (
         <div ref={sidebarRef} className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right border-l border-gray-200">
           {/* 侧边栏头部 */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-lg font-semibold text-gray-900">历史图片</h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleClearImageCache(cachedImages)}
-                className="px-3 py-1.5 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                title="清除所有图片缓存"
-              >
-                清除缓存
-              </button>
+          <div className="flex flex-col border-b border-gray-200 bg-gray-50">
+            {/* 标题和关闭按钮 */}
+            <div className="flex items-center justify-between p-4">
+              <h3 className="text-lg font-semibold text-gray-900">历史记录</h3>
               <button
                 onClick={() => setShowHistorySidebar(false)}
                 className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
@@ -526,17 +610,68 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 ×
               </button>
             </div>
+
+            {/* 切换按钮 */}
+            <div className="flex border-t border-gray-200">
+              <button
+                onClick={() => setHistorySidebarType('images')}
+                className={cn(
+                  'flex-1 px-4 py-3 text-sm font-medium transition-colors',
+                  historySidebarType === 'images'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                )}
+              >
+                图片
+              </button>
+              <button
+                onClick={() => setHistorySidebarType('texts')}
+                className={cn(
+                  'flex-1 px-4 py-3 text-sm font-medium transition-colors border-l border-gray-200',
+                  historySidebarType === 'texts'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                )}
+              >
+                文本
+              </button>
+            </div>
           </div>
 
-          {/* 图片缓存列表 */}
-          <div className="flex-1 overflow-auto p-4">
-            {cachedImages.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <div className="text-4xl mb-4">🖼️</div>
-                <p>暂无图片缓存</p>
-                <p className="text-sm mt-2">上传图片后会自动保存到缓存</p>
-              </div>
-            ) : (
+          {/* 内容区域 */}
+          <div className="flex-1 overflow-auto">
+            {/* 操作按钮区域 */}
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              {historySidebarType === 'images' ? (
+                <button
+                  onClick={() => handleClearImageCache(cachedImages)}
+                  className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                  title="清除所有图片缓存"
+                >
+                  清除所有图片缓存
+                </button>
+              ) : (
+                <button
+                  onClick={() => clearAllTextFiles(textHistory)}
+                  className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                  title="删除所有文本文件"
+                >
+                  删除所有文本文件
+                </button>
+              )}
+            </div>
+
+            {/* 列表内容 */}
+            <div className="p-4">
+              {historySidebarType === 'images' ? (
+                // 图片缓存列表
+                cachedImages.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <div className="text-4xl mb-4">🖼️</div>
+                    <p>暂无图片缓存</p>
+                    <p className="text-sm mt-2">上传图片后会自动保存到缓存</p>
+                  </div>
+                ) : (
               <div className="space-y-3">
                 {cachedImages.map((image) => (
                   <div
@@ -587,8 +722,74 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                     </div>
                   </div>
                 ))}
-              </div>
-            )}
+                </div>
+                )
+              ) : (
+                // 文本历史列表
+                textHistory.length === 0 ? (
+                  <div className="text-center text-gray-500 py-8">
+                    <div className="text-4xl mb-4">📝</div>
+                    <p>暂无保存的文本</p>
+                    <p className="text-sm mt-2">使用保存按钮保存文本后会显示在这里</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {textHistory.map((textItem) => (
+                      <div
+                        key={textItem.id}
+                        className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
+                      >
+                        {/* 文本项头部 */}
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
+                            {textItem.fileName.replace('.txt', '')}
+                          </h4>
+                          <div className="flex items-center gap-2 ml-2">
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              {new Date(textItem.createdAt).toLocaleDateString('zh-CN', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm('确定要删除这个文本文件吗？')) {
+                                  deleteTextFile(textItem.fileName);
+                                }
+                              }}
+                              className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                              title="删除此文本文件"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 文本预览 */}
+                        <div className="mb-3">
+                          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border line-clamp-3">
+                            {textItem.preview}
+                          </div>
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRestoreTextFromHistory(textItem.fileName)}
+                            className="flex-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                          >
+                            插入到编辑器
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
       )}

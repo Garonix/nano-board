@@ -50,6 +50,12 @@ next-env.d.ts
 logs/
 *.log
 
+# 临时测试脚本
+test-*.js
+test-*.ts
+temp-*.js
+temp-*.ts
+
 # 临时文件和测试脚本
 .tmp/
 .temp/

@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { ContentBlock, EditorState, ImageCacheItem } from '@/types';
+import { ContentBlock, EditorState, ImageCacheItem, TextHistoryItem, HistorySidebarType } from '@/types';
 
 /**
  * 编辑器状态管理 Hook
@@ -22,9 +22,11 @@ export const useEditorState = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState('1');
 
-  // 图片缓存相关状态
+  // 历史侧边栏相关状态
   const [showHistorySidebar, setShowHistorySidebar] = useState(false);
+  const [historySidebarType, setHistorySidebarType] = useState<HistorySidebarType>('images');
   const [cachedImages, setCachedImages] = useState<ImageCacheItem[]>([]);
+  const [textHistory, setTextHistory] = useState<TextHistoryItem[]>([]);
 
   // 更新文本块内容
   const updateBlockContent = useCallback((blockId: string, content: string) => {
@@ -180,7 +182,9 @@ export const useEditorState = () => {
     isDragOver,
     focusedBlockId,
     showHistorySidebar,
-    cachedImages
+    historySidebarType,
+    cachedImages,
+    textHistory
   };
 
   return {
@@ -197,7 +201,9 @@ export const useEditorState = () => {
     setIsDragOver,
     setFocusedBlockId,
     setShowHistorySidebar,
+    setHistorySidebarType,
     setCachedImages,
+    setTextHistory,
 
     // 业务逻辑函数
     updateBlockContent,

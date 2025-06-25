@@ -42,6 +42,18 @@ export interface LocalImageCacheData {
   lastUpdated: Date;
 }
 
+// 文本历史项类型
+export interface TextHistoryItem {
+  id: string;
+  fileName: string;
+  preview: string;
+  createdAt: string;
+  size: number;
+}
+
+// 历史侧边栏类型
+export type HistorySidebarType = 'images' | 'texts';
+
 // 组件属性类型
 export interface ComponentProps {
   className?: string;
@@ -69,5 +81,7 @@ export interface EditorState {
   isDragOver: boolean;
   focusedBlockId: string;
   showHistorySidebar: boolean;
+  historySidebarType: HistorySidebarType;
   cachedImages: ImageCacheItem[];
+  textHistory: TextHistoryItem[];
 }
