@@ -96,7 +96,7 @@ export const useImageManager = (
     }, 0);
   }, [contentToBlocks, setBlocks, extractImagesFromBlocks, loadCachedImages]);
 
-  // 在普通模式下将图片添加到页面末尾
+  // 在普通模式下将图片添加到页面末尾（不自动创建文本框）
   const insertImageAtEnd = useCallback((imageSrc: string, altText: string) => {
     setBlocks(prev => {
       const newBlocks = [...prev];
@@ -120,15 +120,9 @@ export const useImageManager = (
         alt: altText
       };
 
-      // 创建新的文本块
-      const newTextBlock: ContentBlock = {
-        id: (Date.now() + 1).toString(),
-        type: 'text',
-        content: ''
-      };
-
-      // 将图片和文本块添加到末尾
-      newBlocks.push(imageBlock, newTextBlock);
+      // 只添加图片块，不再自动创建文本框
+      // 用户需要通过"+"按钮手动创建新文本框
+      newBlocks.push(imageBlock);
 
       return newBlocks;
     });

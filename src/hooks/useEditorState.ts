@@ -101,8 +101,8 @@ export const useEditorState = () => {
     });
   }, []);
 
-  // 确保普通模式下末尾始终有文本框
-  const ensureEndingTextBlock = useCallback((blocks: ContentBlock[]): ContentBlock[] => {
+  // 确保至少有一个文本块（仅在完全为空时）
+  const ensureMinimumTextBlock = useCallback((blocks: ContentBlock[]): ContentBlock[] => {
     // 只在普通模式下执行此检查
     if (isMarkdownMode) return blocks;
 
@@ -116,17 +116,7 @@ export const useEditorState = () => {
       return [newTextBlock];
     }
 
-    // 如果最后一个块不是文本块，或者最后一个文本块有内容，添加新的空文本块
-    const lastBlock = blocks[blocks.length - 1];
-    if (lastBlock.type !== 'text' || lastBlock.content.trim() !== '') {
-      const newTextBlock: ContentBlock = {
-        id: Date.now().toString(),
-        type: 'text',
-        content: ''
-      };
-      return [...blocks, newTextBlock];
-    }
-
+    // 移除原有的强制末尾文本框逻辑，允许页面以图片块或非空文本框结尾
     return blocks;
   }, [isMarkdownMode]);
 
@@ -140,10 +130,76 @@ export const useEditorState = () => {
       if (!block || block.type !== 'text' || block.content.trim()) return prev;
 
       const newBlocks = prev.filter(b => b.id !== blockId);
-      // 确保末尾有文本框
-      return ensureEndingTextBlock(newBlocks);
+      // 确保至少有一个文本块
+      return ensureMinimumTextBlock(newBlocks);
     });
-  }, [ensureEndingTextBlock]);
+  }, [ensureMinimumTextBlock]);
+
+  // 添加新文本框到指定位置
+  const addTextBlockAfter = useCallback((afterBlockId: string) => {
+    setBlocks(prev => {
+      const afterIndex = prev.findIndex(block => block.id === afterBlockId);
+      if (afterIndex === -1) return prev;
+
+      const newTextBlock: ContentBlock = {
+        id: Date.now().toString(),
+        type: 'text',
+        content: ''
+      };
+
+      const newBlocks = [...prev];
+      newBlocks.splice(afterIndex + 1, 0, newTextBlock);
+
+      // 设置焦点到新文本框
+      setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
+
+      return newBlocks;
+    });
+  }, []);
+
+  // 查找第一个空文本框
+  const findFirstEmptyTextBlock = useCallback((blocks: ContentBlock[]): ContentBlock | null => {
+    return blocks.find(block => block.type === 'text' && block.content.trim() === '') || null;
+  }, []);
+
+  // 智能插入文本内容（优先使用空文本框）
+  const insertTextContent = useCallback((content: string) => {
+    setBlocks(prev => {
+      // 查找第一个空文本框
+      const emptyTextBlock = findFirstEmptyTextBlock(prev);
+
+      if (emptyTextBlock) {
+        // 如果存在空文本框，直接填入内容
+        const updatedBlocks = prev.map(block =>
+          block.id === emptyTextBlock.id ? { ...block, content } : block
+        );
+        // 设置焦点到该文本框
+        setTimeout(() => setFocusedBlockId(emptyTextBlock.id), 0);
+        return updatedBlocks;
+      } else {
+        // 如果不存在空文本框，创建新的文本框
+        const newTextBlock: ContentBlock = {
+          id: Date.now().toString(),
+          type: 'text',
+          content
+        };
+        // 设置焦点到新文本框
+        setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
+        return [...prev, newTextBlock];
+      }
+    });
+  }, [findFirstEmptyTextBlock]);
+
+  // 清空指定文本框内容
+  const clearTextBlockContent = useCallback((blockId: string) => {
+    setBlocks(prev => prev.map(block =>
+      block.id === blockId && block.type === 'text'
+        ? { ...block, content: '' }
+        : block
+    ));
+    // 设置焦点到清空的文本框
+    setTimeout(() => setFocusedBlockId(blockId), 0);
+  }, []);
 
   // 清空所有内容
   const clearAllBlocks = useCallback(() => {
@@ -158,8 +214,8 @@ export const useEditorState = () => {
 
   // 处理模式切换后的状态同步
   const syncBlocksAfterModeSwitch = useCallback((newBlocks: ContentBlock[]) => {
-    // 应用 ensureEndingTextBlock 逻辑
-    const syncedBlocks = ensureEndingTextBlock(newBlocks);
+    // 应用 ensureMinimumTextBlock 逻辑
+    const syncedBlocks = ensureMinimumTextBlock(newBlocks);
     setBlocks(syncedBlocks);
 
     // 设置焦点到第一个文本块
@@ -167,7 +223,7 @@ export const useEditorState = () => {
     if (firstTextBlock) {
       setFocusedBlockId(firstTextBlock.id);
     }
-  }, [ensureEndingTextBlock]);
+  }, [ensureMinimumTextBlock]);
 
   // 检查页面是否包含图片块
   const hasImageBlocks = blocks.some(block => block.type === 'image');
@@ -210,7 +266,13 @@ export const useEditorState = () => {
     deleteBlock,
     deleteEmptyTextBlock,
     clearAllBlocks,
-    ensureEndingTextBlock,
-    syncBlocksAfterModeSwitch
+    ensureMinimumTextBlock,
+    syncBlocksAfterModeSwitch,
+
+    // 新增的文本框管理函数
+    addTextBlockAfter,
+    findFirstEmptyTextBlock,
+    insertTextContent,
+    clearTextBlockContent
   };
 };
