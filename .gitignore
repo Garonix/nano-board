@@ -53,10 +53,13 @@ logs/
 # 临时测试脚本
 test-*.js
 test-*.ts
+test-*.html
 temp-*.js
 temp-*.ts
+temp-*.html
 test_*.js
 test_*.ts
+test_*.html
 
 # 临时文件和测试脚本
 .tmp/

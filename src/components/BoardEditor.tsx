@@ -654,12 +654,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           </div>
         )}
 
-        {/* Markdown模式 - 改进分栏布局和同步滚动，添加与普通模式一致的边框样式 */}
+        {/* Markdown模式 - 优化布局和高度设置，确保文本编辑区域充分利用可用空间 */}
         {isMarkdownMode && (
           <div className="flex w-full h-full p-2">
-            {/* 编辑区域 - 添加边框容器 */}
+            {/* 编辑区域 - 确保正确的flex布局 */}
             <div className={cn(
-              'flex flex-col',
+              'flex flex-col h-full', // 添加 h-full 确保高度传递
               showMarkdownPreview ? 'flex-1 mr-2' : 'w-full'
             )}>
               {/* 文本编辑区域容器 - 应用与普通模式相同的边框样式 */}
@@ -681,9 +681,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   placeholder="开始输入Markdown内容，支持粘贴图片..."
                   spellCheck={false}
                   style={{
-                    minHeight: 'calc(100vh - 140px)', // 设置接近完整页面高度
-                    height: 'calc(100vh - 140px)',    // 与单个文本框类似的高度
-                    maxHeight: 'calc(100vh - 140px)'  // 限制最大高度
+                    minHeight: 'calc(100vh - 140px)', // 恢复原来的高度设置以确保滚动同步正常工作
+                    height: 'calc(100vh - 140px)',
+                    maxHeight: 'calc(100vh - 140px)'
                   }}
                 />
               </div>
@@ -691,7 +691,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
             {/* 预览区域 - 添加与编辑区域一致的边框样式 */}
             {showMarkdownPreview && (
-              <div className="flex-1 flex flex-col ml-2">
+              <div className="flex-1 flex flex-col ml-2 h-full"> {/* 添加 h-full 确保高度传递 */}
                 {/* 预览区域容器 - 应用与编辑区域相同的边框样式 */}
                 <div className="h-full border rounded-lg bg-gray-50 border-gray-200 shadow-sm">
                   <div
@@ -699,7 +699,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                     className="h-full overflow-auto p-3"
                     onScroll={syncScrollFromPreview}
                     style={{
-                      minHeight: 'calc(100vh - 140px)', // 与编辑区域保持一致的高度
+                      minHeight: 'calc(100vh - 140px)', // 与编辑区域保持一致的高度以确保滚动同步
                       height: 'calc(100vh - 140px)',
                       maxHeight: 'calc(100vh - 140px)'
                     }}

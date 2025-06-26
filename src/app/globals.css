@@ -240,10 +240,31 @@ html, body, #__next {
   overflow: hidden;
 }
 
+/* Markdown编辑器专用样式 - 移除冲突的样式设置，保持滚动同步功能 */
+.markdown-editor-textarea {
+  /* 仅添加必要的样式，不覆盖高度设置以避免影响滚动同步 */
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+/* 确保Markdown模式的容器能够正确传递高度 */
+.markdown-editor-container {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important; /* 允许flex子项收缩 */
+}
+
 /* 响应式优化 */
 @media (max-width: 768px) {
   .plain-editor-overlay,
   textarea {
     padding: 1rem !important;
+  }
+
+  /* 移动端Markdown编辑器优化 */
+  .markdown-editor-textarea {
+    padding: 1rem !important;
+    font-size: 14px !important;
   }
 }
