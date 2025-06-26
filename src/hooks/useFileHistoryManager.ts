@@ -8,7 +8,7 @@ import { LocalImageFileItem, LocalTextFileItem, FileHistoryLoadingState } from '
 
 /**
  * 文件历史管理 Hook（简化版）
- * @param setLocalImageFiles 设置本地图片文件列表函数
+ * @param setLocalImageFiles 设置图片缓存列表函数
  * @param setLocalTextFiles 设置本地文本文件列表函数
  * @param setFileHistoryLoadingState 设置加载状态函数
  * @returns 文件历史管理相关函数

@@ -194,7 +194,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-  // 处理插入本地图片文件
+  // 处理插入图片缓存
   const handleInsertLocalImageFile = (imagePath: string, fileName: string) => {
     try {
       const altText = fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名作为alt文本
@@ -232,9 +232,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       }
 
       setShowHistorySidebar(false);
-      console.log(`本地图片文件插入成功: ${fileName}`);
+      console.log(`图片缓存插入成功: ${fileName}`);
     } catch (error) {
-      console.error('插入本地图片文件时发生错误:', error);
+      console.error('插入图片缓存时发生错误:', error);
     }
   };
 
@@ -773,13 +773,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           <div className="flex-1 overflow-auto">
             {/* 操作按钮区域 */}
             <div className="p-4 border-b border-gray-200 bg-gray-50">
-              {/* 加载状态显示 */}
-              {fileHistoryLoadingState.isLoading && (
-                <div className="flex items-center justify-center mb-3 text-blue-600">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                  <span className="text-sm">扫描文件中...</span>
-                </div>
-              )}
 
               {/* 错误状态显示 */}
               {fileHistoryLoadingState.error && (
@@ -794,7 +787,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   <button
                     onClick={() => handleClearAllLocalFiles('image')}
                     className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                    title="删除所有本地图片文件"
+                    title="删除所有图片缓存"
                     disabled={fileHistoryLoadingState.isLoading}
                   >
                     删除所有图片文件
@@ -826,15 +819,15 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             <div className="p-4">
               {historySidebarType === 'images' ? (
                 <div className="space-y-6">
-                  {/* 本地图片文件列表 */}
+                  {/* 图片缓存列表 */}
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                      本地图片文件 ({localImageFiles.length})
+                      图片缓存 ({localImageFiles.length})
                     </h4>
                     {localImageFiles.length === 0 ? (
                       <div className="text-center text-gray-400 py-4 text-sm">
-                        暂无本地图片文件
+                        暂无图片缓存
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -876,18 +869,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                               <img
                                 src={imageFile.filePath}
                                 alt={imageFile.fileName}
+                                onClick={() => handleInsertLocalImageFile(imageFile.filePath, imageFile.fileName)}
                                 className="w-full h-32 object-cover rounded border border-gray-200"
                               />
-                            </div>
-
-                            {/* 操作按钮 */}
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleInsertLocalImageFile(imageFile.filePath, imageFile.fileName)}
-                                className="flex-1 px-3 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                              >
-                                插入到编辑器
-                              </button>
                             </div>
                           </div>
                         ))}
@@ -943,19 +927,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
                             {/* 文本预览 */}
                             <div className="mb-3">
-                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border line-clamp-3">
+                              <div
+                                onClick={() => handleRestoreLocalTextFile(textFile.fileName)}
+                                className="text-xs text-gray-600 bg-gray-50 p-2 rounded border line-clamp-3">
                                 {textFile.preview}
                               </div>
-                            </div>
-
-                            {/* 操作按钮 */}
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRestoreLocalTextFile(textFile.fileName)}
-                                className="flex-1 px-3 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                              >
-                                插入到编辑器
-                              </button>
                             </div>
                           </div>
                         ))}

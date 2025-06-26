@@ -41,7 +41,7 @@ export interface LocalFileItem {
   type: 'image' | 'text';
 }
 
-// 本地图片文件项类型
+// 图片缓存项类型
 export interface LocalImageFileItem extends LocalFileItem {
   type: 'image';
   extension: string;
