@@ -255,6 +255,39 @@ html, body, #__next {
   min-height: 0 !important; /* 允许flex子项收缩 */
 }
 
+/* 修复Markdown分栏布局宽度一致性 */
+.markdown-split-layout {
+  /* 确保flex容器正确处理内容溢出 */
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 确保ReactMarkdown内容不会影响父容器宽度 */
+.markdown-preview-content {
+  /* 防止长单词或代码块撑开容器 */
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  /* 确保表格等宽内容不会溢出 */
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 修复代码块可能导致的宽度问题 */
+.markdown-preview-content pre {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+}
+
+/* 修复表格可能导致的宽度问题 */
+.markdown-preview-content table {
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  word-wrap: break-word !important;
+}
+
 /* 响应式优化 */
 @media (max-width: 768px) {
   .plain-editor-overlay,

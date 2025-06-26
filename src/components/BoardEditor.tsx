@@ -608,13 +608,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           </div>
         )}
 
-        {/* Markdown模式 - 优化布局和高度设置，确保文本编辑区域充分利用可用空间 */}
+        {/* Markdown模式 - 修复左右分栏宽度一致性问题 */}
         {isMarkdownMode && (
-          <div className="flex w-full h-full p-2">
-            {/* 编辑区域 - 确保正确的flex布局 */}
+          <div className="flex w-full h-full p-2 gap-2">
+            {/* 编辑区域 - 使用统一的flex-1确保宽度一致 */}
             <div className={cn(
-              'flex flex-col h-full', // 添加 h-full 确保高度传递
-              showMarkdownPreview ? 'flex-1 mr-2' : 'w-full'
+              'flex flex-col min-w-0', // 使用min-w-0防止内容溢出影响flex宽度计算
+              showMarkdownPreview ? 'flex-1' : 'w-full'
             )}>
               {/* 文本编辑区域容器 - 应用与普通模式相同的边框样式 */}
               <div className="h-full border rounded-lg bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-20 shadow-sm transition-all duration-200">
@@ -643,9 +643,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               </div>
             </div>
 
-            {/* 预览区域 - 添加与编辑区域一致的边框样式 */}
+            {/* 预览区域 - 使用统一的flex-1确保宽度一致 */}
             {showMarkdownPreview && (
-              <div className="flex-1 flex flex-col ml-2 h-full"> {/* 添加 h-full 确保高度传递 */}
+              <div className="flex-1 flex flex-col min-w-0"> {/* 使用min-w-0防止内容溢出影响flex宽度计算 */}
                 {/* 预览区域容器 - 应用与编辑区域相同的边框样式 */}
                 <div className="h-full border rounded-lg bg-gray-50 border-gray-200 shadow-sm">
                   <div
@@ -662,7 +662,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={markdownComponents}
-                        className="prose prose-sm max-w-none prose-gray"
+                        className="prose prose-sm max-w-none prose-gray markdown-preview-content"
                       >
                         {blocksToContent(blocks)}
                       </ReactMarkdown>

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  * 增强的Markdown组件配置 - 支持完整的Markdown语法
  */
 export const markdownComponents = {
-  // 代码块和内联代码
+  // 代码块和内联代码 - 修复宽度溢出问题
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   code(props: any) {
     const { inline, className, children, ...rest } = props;
@@ -22,13 +22,20 @@ export const markdownComponents = {
         style={tomorrow}
         language={match[1]}
         PreTag="div"
-        className="rounded-lg shadow-sm border border-gray-200 my-4"
+        className="rounded-lg shadow-sm border border-gray-200 my-4 max-w-full"
+        wrapLongLines={true}
+        customStyle={{
+          maxWidth: '100%',
+          overflowX: 'auto',
+          whiteSpace: 'pre-wrap',
+          wordWrap: 'break-word'
+        }}
         {...rest}
       >
         {String(children).replace(/\n$/, '')}
       </SyntaxHighlighter>
     ) : (
-      <code className={cn('bg-gray-100 px-2 py-1 rounded text-sm font-mono text-red-600', className)} {...rest}>
+      <code className={cn('bg-gray-100 px-2 py-1 rounded text-sm font-mono text-red-600 break-words', className)} {...rest}>
         {children}
       </code>
     );
@@ -124,12 +131,12 @@ export const markdownComponents = {
     );
   },
 
-  // 表格组件
+  // 表格组件 - 修复宽度溢出问题
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table(props: any) {
     return (
-      <div className="overflow-x-auto mb-4">
-        <table className="min-w-full border border-gray-200 rounded-lg" {...props} />
+      <div className="overflow-x-auto mb-4 max-w-full">
+        <table className="w-full border border-gray-200 rounded-lg" style={{ tableLayout: 'fixed', wordWrap: 'break-word' }} {...props} />
       </div>
     );
   },
