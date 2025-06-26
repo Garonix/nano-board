@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,7 @@ import { useTextManager } from '@/hooks/useTextManager';
 import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
 
 // 组件
-// HistorySidebar 已在内联实现中使用
+import { HistorySidebar } from './HistorySidebar';
 
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 使用自定义 Hooks 管理状态和逻辑
@@ -140,8 +140,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
 
 
-  // 引用
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  // 引用（sidebarRef 已移除，由 HistorySidebar 组件内部管理）
 
   // 文本保存按钮状态
   const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
@@ -275,18 +274,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-
-
-
-
-
-
-
-
-
-
-
-
   // 初始化
   useEffect(() => {
     // 加载保存的设置
@@ -301,22 +288,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     loadData();
   }, [isMarkdownMode, loadData]);
 
-  // 处理点击外部区域关闭侧边栏
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showHistorySidebar && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-        setShowHistorySidebar(false);
-      }
-    };
-
-    if (showHistorySidebar) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showHistorySidebar, setShowHistorySidebar]);
+  // 点击外部关闭侧边栏的逻辑已移至 HistorySidebar 组件内部
 
   // 自动保存
   useEffect(() => {
@@ -334,10 +306,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     localStorage.setItem('nano-board-markdown-preview', showMarkdownPreview.toString());
   }, [showMarkdownPreview]);
 
-
-
-
-
   // 清理函数
   useEffect(() => {
     return () => {
@@ -351,20 +319,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   useEffect(() => {
     updateAllTextareasHeight(isSingleTextBlock);
   }, [isSingleTextBlock]); // 依赖单个文本框状态，确保即时更新
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   if (isLoading) {
     return (
@@ -725,225 +679,27 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         )}
       </div>
 
-      {/* 历史侧边栏 */}
-      {showHistorySidebar && (
-        <div ref={sidebarRef} className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right border-l border-gray-200">
-          {/* 侧边栏头部 */}
-          <div className="flex flex-col border-b border-gray-200 bg-gray-50">
-            {/* 标题和关闭按钮 */}
-            <div className="flex items-center justify-between p-4">
-              <h3 className="text-lg font-semibold text-gray-900">历史记录</h3>
-              <button
-                onClick={() => setShowHistorySidebar(false)}
-                className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
-                title="关闭"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* 切换按钮 */}
-            <div className="flex border-t border-gray-200">
-              <button
-                onClick={() => setHistorySidebarType('images')}
-                className={cn(
-                  'flex-1 px-4 py-3 text-sm font-medium transition-colors',
-                  historySidebarType === 'images'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                )}
-              >
-                图片
-              </button>
-              <button
-                onClick={() => setHistorySidebarType('texts')}
-                className={cn(
-                  'flex-1 px-4 py-3 text-sm font-medium transition-colors border-l border-gray-200',
-                  historySidebarType === 'texts'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                )}
-              >
-                文本
-              </button>
-            </div>
-          </div>
-
-          {/* 内容区域 */}
-          <div className="flex-1 overflow-auto">
-            {/* 操作按钮区域 */}
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-
-              {/* 错误状态显示 */}
-              {fileHistoryLoadingState.error && (
-                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
-                  {fileHistoryLoadingState.error}
-                </div>
-              )}
-
-              {/* 操作按钮 */}
-              <div className="space-y-2">
-                {historySidebarType === 'images' ? (
-                  <button
-                    onClick={() => handleClearAllLocalFiles('image')}
-                    className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                    title="删除所有图片缓存"
-                    disabled={fileHistoryLoadingState.isLoading}
-                  >
-                    删除所有图片文件
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleClearAllLocalFiles('text')}
-                    className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                    title="删除所有本地文本文件"
-                    disabled={fileHistoryLoadingState.isLoading}
-                  >
-                    删除所有本地文本文件
-                  </button>
-                )}
-
-                {/* 刷新按钮 */}
-                <button
-                  onClick={refreshFileHistory}
-                  className="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                  title="刷新文件列表"
-                  disabled={fileHistoryLoadingState.isLoading}
-                >
-                  {fileHistoryLoadingState.isLoading ? '刷新中...' : '刷新列表'}
-                </button>
-              </div>
-            </div>
-
-            {/* 列表内容 */}
-            <div className="p-4">
-              {historySidebarType === 'images' ? (
-                <div className="space-y-6">
-                  {/* 图片缓存列表 */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                      图片缓存 ({localImageFiles.length})
-                    </h4>
-                    {localImageFiles.length === 0 ? (
-                      <div className="text-center text-gray-400 py-4 text-sm">
-                        暂无图片缓存
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {localImageFiles.map((imageFile) => (
-                          <div
-                            key={imageFile.id}
-                            className="border border-gray-200 rounded-lg p-3 hover:border-green-300 hover:shadow-sm hover:bg-green-50 transition-all group"
-                          >
-                            {/* 图片文件项头部 */}
-                            <div className="flex items-start justify-between mb-2">
-                              <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
-                                {imageFile.fileName.replace(/\.[^/.]+$/, '')}
-                              </h4>
-                              <div className="flex items-center gap-2 ml-2">
-                                <span className="text-xs text-gray-500 flex-shrink-0">
-                                  {new Date(imageFile.modifiedAt).toLocaleDateString('zh-CN', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteLocalFile(imageFile.fileName, 'image');
-                                  }}
-                                  className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                                  title="删除此图片文件"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* 图片预览 */}
-                            <div className="mb-3">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={imageFile.filePath}
-                                alt={imageFile.fileName}
-                                onClick={() => handleInsertLocalImageFile(imageFile.filePath, imageFile.fileName)}
-                                className="w-full h-32 object-cover rounded border border-gray-200"
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* 本地文本文件列表 */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                      本地文本文件 ({localTextFiles.length})
-                    </h4>
-                    {localTextFiles.length === 0 ? (
-                      <div className="text-center text-gray-400 py-4 text-sm">
-                        暂无本地文本文件
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {localTextFiles.map((textFile) => (
-                          <div
-                            key={textFile.id}
-                            className="border border-gray-200 rounded-lg p-3 hover:border-green-300 hover:shadow-sm hover:bg-green-50 transition-all group"
-                          >
-                            {/* 文本文件项头部 */}
-                            <div className="flex items-start justify-between mb-2">
-                              <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
-                                {textFile.fileName.replace('.txt', '')}
-                              </h4>
-                              <div className="flex items-center gap-2 ml-2">
-                                <span className="text-xs text-gray-500 flex-shrink-0">
-                                  {new Date(textFile.modifiedAt).toLocaleDateString('zh-CN', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteLocalFile(textFile.fileName, 'text');
-                                  }}
-                                  className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                                  title="删除此文本文件"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* 文本预览 */}
-                            <div className="mb-3">
-                              <div
-                                onClick={() => handleRestoreLocalTextFile(textFile.fileName)}
-                                className="text-xs text-gray-600 bg-gray-50 p-2 rounded border line-clamp-3">
-                                {textFile.preview}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 历史侧边栏 - 使用独立组件 */}
+      <HistorySidebar
+        isVisible={showHistorySidebar}
+        onClose={() => setShowHistorySidebar(false)}
+        sidebarType={historySidebarType}
+        onSidebarTypeChange={setHistorySidebarType}
+        imageFiles={localImageFiles}
+        textFiles={localTextFiles}
+        loadingState={fileHistoryLoadingState}
+        onRefresh={refreshFileHistory}
+        onImageInsert={(imageSrc: string, altText: string) => {
+          // 适配器：将 HistorySidebar 的接口转换为 BoardEditor 的接口
+          // HistorySidebar 传递 (imageSrc, altText)，但 handleInsertLocalImageFile 需要 (imagePath, fileName)
+          // 从 imageSrc 推断 fileName
+          const fileName = imageSrc.split('/').pop() || altText;
+          handleInsertLocalImageFile(imageSrc, fileName);
+        }}
+        onTextInsert={handleRestoreLocalTextFile}
+        onFileDelete={handleDeleteLocalFile}
+        onClearAll={handleClearAllLocalFiles}
+      />
     </div>
   );
 };
