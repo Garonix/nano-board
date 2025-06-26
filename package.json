@@ -5,6 +5,7 @@
   "description": "极简自托管网页白板",
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:webpack": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

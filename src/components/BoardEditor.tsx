@@ -25,6 +25,9 @@ import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useTextManager } from '@/hooks/useTextManager';
 import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
 
+// 组件
+// HistorySidebar 已在内联实现中使用
+
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 使用自定义 Hooks 管理状态和逻辑
   const {
@@ -71,12 +74,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 内容转换 Hook
   const { blocksToContent, contentToBlocks } = useContentConverter(isMarkdownMode);
 
-  // 文件历史管理 Hook
+  // 文件历史管理 Hook（简化版）
   const {
     refreshFileHistory,
-    getLocalTextFileContent,
-    deleteLocalFile,
-    clearAllLocalFiles
+    getTextFileContent,
+    deleteFile,
+    clearAllFiles
   } = useFileHistoryManager(
     setLocalImageFiles,
     setLocalTextFiles,
@@ -144,10 +147,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
   const [isSavingText, setIsSavingText] = useState(false);
 
-  // 处理文本保存
+  // 处理文本保存（移除alert提示）
   const handleSaveText = async (content: string) => {
     if (!content.trim()) {
-      alert('不能保存空白内容');
+      console.warn('不能保存空白内容');
       return;
     }
 
@@ -155,13 +158,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     try {
       const success = await saveTextToFile(content);
       if (success) {
-        alert('文本保存成功！');
+        console.log('文本保存成功');
       } else {
-        alert('文本保存失败，请重试');
+        console.error('文本保存失败');
       }
     } catch (error) {
       console.error('保存文本时发生错误:', error);
-      alert('文本保存失败，请重试');
     } finally {
       setIsSavingText(false);
     }
@@ -169,10 +171,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   // 注意：文本历史恢复功能已移除，统一使用本地文件恢复
 
-  // 处理从本地文本文件恢复内容
+  // 处理从本地文本文件恢复内容（移除alert提示）
   const handleRestoreLocalTextFile = async (fileName: string) => {
     try {
-      const content = await getLocalTextFileContent(fileName);
+      const content = await getTextFileContent(fileName);
       if (content) {
         // 在普通模式下，智能插入内容（优先使用空文本框）
         if (!isMarkdownMode) {
@@ -183,12 +185,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           setBlocks(newBlocks);
         }
         setShowHistorySidebar(false);
+        console.log(`文本文件恢复成功: ${fileName}`);
       } else {
-        alert('无法读取本地文本文件内容');
+        console.error(`无法读取本地文本文件内容: ${fileName}`);
       }
     } catch (error) {
       console.error('恢复本地文本文件时发生错误:', error);
-      alert('恢复本地文本文件失败，请重试');
     }
   };
 
@@ -230,47 +232,46 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       }
 
       setShowHistorySidebar(false);
+      console.log(`本地图片文件插入成功: ${fileName}`);
     } catch (error) {
       console.error('插入本地图片文件时发生错误:', error);
-      alert('插入本地图片文件失败，请重试');
     }
   };
 
-  // 处理删除本地文件
+  // 处理删除本地文件（移除确认提示和alert）
   const handleDeleteLocalFile = async (fileName: string, fileType: 'image' | 'text') => {
-    if (!window.confirm(`确定要删除这个${fileType === 'image' ? '图片' : '文本'}文件吗？`)) {
+    try {
+      const success = await deleteFile(fileName, fileType);
+      if (success) {
+        // 刷新文件历史
+        await refreshFileHistory();
+        console.log(`${fileType === 'image' ? '图片' : '文本'}文件删除成功: ${fileName}`);
+      } else {
+        console.error(`${fileType === 'image' ? '图片' : '文本'}文件删除失败: ${fileName}`);
+      }
+    } catch (error) {
+      console.error('删除本地文件时发生错误:', error);
+    }
+  };
+
+  // 处理清除所有本地文件（保留确认提示，移除结果alert）
+  const handleClearAllLocalFiles = async (fileType: 'image' | 'text') => {
+    // 保留危险操作的确认提示
+    if (!window.confirm(`确定要删除所有${fileType === 'image' ? '图片' : '文本'}文件吗？此操作无法撤销。`)) {
       return;
     }
 
     try {
-      const success = await deleteLocalFile(fileName, fileType);
+      const success = await clearAllFiles(fileType);
       if (success) {
         // 刷新文件历史
         await refreshFileHistory();
-        alert('文件删除成功！');
+        console.log(`所有${fileType === 'image' ? '图片' : '文本'}文件清除成功`);
       } else {
-        alert('文件删除失败，请重试');
-      }
-    } catch (error) {
-      console.error('删除本地文件时发生错误:', error);
-      alert('删除本地文件失败，请重试');
-    }
-  };
-
-  // 处理清除所有本地文件
-  const handleClearAllLocalFiles = async (fileType: 'image' | 'text') => {
-    try {
-      const success = await clearAllLocalFiles(fileType);
-      if (success) {
-        // 刷新文件历史
-        await refreshFileHistory();
-        alert(`所有${fileType === 'image' ? '图片' : '文本'}文件清除成功！`);
-      } else {
-        alert(`清除${fileType === 'image' ? '图片' : '文本'}文件失败，请重试`);
+        console.error(`清除${fileType === 'image' ? '图片' : '文本'}文件失败`);
       }
     } catch (error) {
       console.error('清除本地文件时发生错误:', error);
-      alert(`清除${fileType === 'image' ? '图片' : '文本'}文件失败，请重试`);
     }
   };
 

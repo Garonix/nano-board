@@ -55,6 +55,8 @@ test-*.js
 test-*.ts
 temp-*.js
 temp-*.ts
+test_*.js
+test_*.ts
 
 # 临时文件和测试脚本
 .tmp/

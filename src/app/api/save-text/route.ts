@@ -33,7 +33,7 @@ function generateSafeFileName(content: string): string {
 
   // 取前5个字符作为文件名
   let fileName = content.trim().substring(0, 5);
-  
+
   // 如果内容少于5个字符，使用全部内容
   if (content.trim().length < 5) {
     fileName = content.trim();
@@ -107,20 +107,12 @@ export async function POST(request: NextRequest) {
 
     // 生成安全的文件名
     const safeFileName = generateSafeFileName(content);
-    
+
     // 生成唯一的文件路径
     const filePath = await generateUniqueFilePath(safeFileName);
-    
-    // 创建文本文件数据
-    const textData = {
-      content,
-      fileName: path.basename(filePath),
-      createdAt: new Date().toISOString(),
-      preview: content.substring(0, 100) + (content.length > 100 ? '...' : '')
-    };
 
-    // 保存文件
-    await fs.writeFile(filePath, JSON.stringify(textData, null, 2), 'utf-8');
+    // 保存纯文本内容（不使用JSON格式）
+    await fs.writeFile(filePath, content, 'utf-8');
 
     console.log(`文本已保存: ${path.basename(filePath)}`);
 
@@ -154,13 +146,15 @@ export async function GET() {
           const filePath = path.join(TEXTS_DIR, fileName);
           const stats = await fs.stat(filePath);
           const content = await fs.readFile(filePath, 'utf-8');
-          const textData = JSON.parse(content);
+
+          // 直接从纯文本内容生成预览
+          const preview = content.length > 100 ? content.substring(0, 100) + '...' : content;
 
           return {
             id: fileName.replace('.txt', ''),
             fileName,
-            preview: textData.preview || textData.content?.substring(0, 100) || '无预览',
-            createdAt: textData.createdAt || stats.birthtime.toISOString(),
+            preview: preview || '无预览',
+            createdAt: stats.birthtime.toISOString(),
             size: stats.size
           };
         } catch (error) {
@@ -195,7 +189,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const fileName = searchParams.get('fileName');
-    
+
     if (!fileName) {
       return NextResponse.json(
         { error: '缺少文件名参数' },
@@ -205,7 +199,7 @@ export async function DELETE(request: NextRequest) {
 
     // 安全检查：确保路径在data/texts目录内
     const fullFilePath = path.join(TEXTS_DIR, path.basename(fileName));
-    
+
     // 验证文件路径是否在允许的目录内
     if (!fullFilePath.startsWith(TEXTS_DIR)) {
       return NextResponse.json(

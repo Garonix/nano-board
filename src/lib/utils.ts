@@ -6,7 +6,7 @@
 import { type ClassValue, clsx } from 'clsx';
 
 // 删除结果类型（保留用于服务器图片删除）
-interface DeleteResult {
+export interface DeleteResult {
   success: boolean;
   error?: string;
 }
