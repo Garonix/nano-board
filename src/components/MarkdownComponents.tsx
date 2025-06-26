@@ -1,6 +1,7 @@
 /**
- * Markdown 组件配置
- * 提供增强的 Markdown 渲染组件
+ * Markdown 渲染组件配置
+ * 提供增强的 Markdown 渲染组件，用于自定义 ReactMarkdown 的渲染行为
+ * 包含代码高亮、图片优化、表格样式等功能
  */
 
 import React from 'react';

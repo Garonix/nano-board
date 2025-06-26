@@ -76,6 +76,51 @@ export interface BoardEditorProps extends ComponentProps {
   mode?: 'normal' | 'markdown'; // 可以扩展更多属性
 }
 
+// 顶部导航栏组件属性类型
+export interface TopNavbarProps {
+  isMarkdownMode: boolean;
+  showMarkdownPreview: boolean;
+  isUploadingImage: boolean;
+  fileHistoryLoadingState: FileHistoryLoadingState;
+  onToggleMarkdownMode: () => void;
+  onToggleMarkdownPreview: () => void;
+  onClearAllContent: () => void;
+  onToggleHistorySidebar: () => Promise<void>;
+}
+
+// 普通模式编辑器组件属性类型
+export interface NormalModeEditorProps {
+  blocks: ContentBlock[];
+  focusedBlockId: string;
+  isSingleTextBlock: boolean;
+  isSavingText: boolean;
+  hoveredTextBlockId: string | null;
+  onUpdateBlockContent: (blockId: string, content: string) => void;
+  onDeleteBlock: (blockId: string) => void;
+  onAddTextBlockAfter: (blockId: string) => void;
+  onClearTextBlockContent: (blockId: string) => void;
+  onSetFocusedBlockId: (blockId: string) => void;
+  onSetHoveredTextBlockId: (blockId: string | null) => void;
+  onHandleImagePaste: (e: React.ClipboardEvent) => void;
+  onHandleKeyDown: (e: React.KeyboardEvent, blockId: string) => void;
+  onHandleSaveText: (content: string) => Promise<void>;
+}
+
+// Markdown 模式编辑器组件属性类型
+export interface MarkdownModeEditorProps {
+  blocks: ContentBlock[];
+  showMarkdownPreview: boolean;
+  editorRef: React.RefObject<HTMLTextAreaElement | null>;
+  previewRef: React.RefObject<HTMLDivElement | null>;
+  blocksToContent: (blocks: ContentBlock[]) => string;
+  contentToBlocks: (content: string) => ContentBlock[];
+  onSetBlocks: (blocks: ContentBlock[]) => void;
+  onHandleImagePaste: (e: React.ClipboardEvent) => void;
+  onHandleMarkdownKeyDown: (e: React.KeyboardEvent) => void;
+  onSyncScrollFromEditor?: () => void;
+  onSyncScrollFromPreview?: () => void;
+}
+
 // 滚动同步配置类型
 export interface ScrollSyncConfig {
   enabled: boolean;
