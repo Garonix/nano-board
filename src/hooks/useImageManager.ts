@@ -3,63 +3,31 @@
  * 统一处理图片上传、插入、缓存等功能
  */
 
-import { useCallback, useRef } from 'react';
-import { ContentBlock, ImageCacheItem } from '@/types';
+import { useCallback } from 'react';
+import { ContentBlock } from '@/types';
 import {
   isImageFile,
-  fileToBase64,
-  saveImagesToCache,
-  loadImageCache,
-  clearImageCache,
-  removeImageFromCache,
-  deleteImageFromServer,
-  batchDeleteImagesFromServer
+  fileToBase64
 } from '@/lib/utils';
 
 /**
- * 图片管理 Hook
- * @param blocks 当前内容块
+ * 图片管理 Hook（简化版）
  * @param setBlocks 设置内容块函数
  * @param isMarkdownMode 是否为 Markdown 模式
- * @param focusedBlockId 当前焦点块ID
  * @param contentToBlocks 内容转换函数
- * @param extractImagesFromBlocks 提取图片函数
- * @param setCachedImages 设置缓存图片函数
  * @param setIsUploadingImage 设置上传状态函数
+ * @param refreshFileHistory 刷新文件历史函数
  * @returns 图片管理相关函数
  */
 export const useImageManager = (
-  blocks: ContentBlock[],
   setBlocks: (blocks: ContentBlock[] | ((prev: ContentBlock[]) => ContentBlock[])) => void,
   isMarkdownMode: boolean,
-  focusedBlockId: string,
   contentToBlocks: (content: string) => ContentBlock[],
-  extractImagesFromBlocks: (blocks: ContentBlock[]) => Array<{id: string, src: string, alt: string}>,
-  setCachedImages: (images: ImageCacheItem[]) => void,
-  setIsUploadingImage: (loading: boolean) => void
+  setIsUploadingImage: (loading: boolean) => void,
+  refreshFileHistory?: () => Promise<void>
 ) => {
-  // 防抖定时器引用
-  const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 保存图片到本地缓存（防抖处理）
-  const saveImagesToCacheDebounced = useCallback(() => {
-    if (localSaveTimeoutRef.current) {
-      clearTimeout(localSaveTimeoutRef.current);
-    }
-
-    localSaveTimeoutRef.current = setTimeout(() => {
-      const images = extractImagesFromBlocks(blocks);
-      if (images.length > 0) {
-        saveImagesToCache(images);
-      }
-    }, 2000); // 2秒防抖
-  }, [blocks, extractImagesFromBlocks]);
-
-  // 加载图片缓存
-  const loadCachedImages = useCallback(() => {
-    const items = loadImageCache();
-    setCachedImages(items);
-  }, [setCachedImages]);
+  // 注意：图片缓存功能已移除，统一使用文件系统扫描
 
   // 在Markdown模式下插入图片
   const insertImageInMarkdownMode = useCallback((imageSrc: string, altText: string) => {
@@ -81,12 +49,7 @@ export const useImageManager = (
     const newBlocks = contentToBlocks(newValue);
     setBlocks(newBlocks);
 
-    // 立即保存图片到缓存（Markdown模式）
-    const images = extractImagesFromBlocks(newBlocks);
-    if (images.length > 0) {
-      saveImagesToCache(images);
-      loadCachedImages(); // 刷新图片缓存列表
-    }
+    // 图片已通过上传自动保存到文件系统，无需额外缓存操作
 
     // 设置光标位置到换行符后，用户可以立即继续输入文本
     setTimeout(() => {
@@ -94,7 +57,7 @@ export const useImageManager = (
       textarea.setSelectionRange(newCursorPos, newCursorPos);
       textarea.focus();
     }, 0);
-  }, [contentToBlocks, setBlocks, extractImagesFromBlocks, loadCachedImages]);
+  }, [contentToBlocks, setBlocks]);
 
   // 在普通模式下将图片添加到页面末尾（不自动创建文本框）
   const insertImageAtEnd = useCallback((imageSrc: string, altText: string) => {
@@ -200,76 +163,20 @@ export const useImageManager = (
             insertImage(imageSrc, altText);
           }
         }
+
+        // 上传完成后刷新文件历史（如果提供了刷新函数）
+        if (refreshFileHistory) {
+          await refreshFileHistory();
+        }
       } finally {
         setIsUploadingImage(false);
       }
     }
-  }, [uploadImage, insertImage, setIsUploadingImage]);
-
-  // 从缓存中恢复图片到编辑器
-  const restoreImageFromCache = useCallback((cacheItem: ImageCacheItem) => {
-    insertImage(cacheItem.src, cacheItem.alt);
-  }, [insertImage]);
-
-  // 清除图片缓存
-  const handleClearImageCache = useCallback(async (cachedImages: ImageCacheItem[]) => {
-    if (window.confirm('确定要清除所有图片缓存吗？此操作将同时删除服务器上的图片文件，无法撤销。')) {
-      try {
-        // 获取所有缓存图片的URL
-        const imageSrcs = cachedImages.map(item => item.src);
-
-        // 批量删除服务器上的图片文件
-        if (imageSrcs.length > 0) {
-          const deleteResult = await batchDeleteImagesFromServer(imageSrcs);
-          if (!deleteResult.success) {
-            console.warn('部分服务器图片删除失败，但仍会清除本地缓存');
-          }
-        }
-
-        // 清除本地缓存
-        clearImageCache();
-        setCachedImages([]);
-
-        console.log('图片缓存清除完成');
-      } catch (error) {
-        console.error('清除图片缓存时发生错误:', error);
-        // 即使服务器删除失败，也清除本地缓存
-        clearImageCache();
-        setCachedImages([]);
-      }
-    }
-  }, [setCachedImages]);
-
-  // 删除单个缓存图片
-  const handleRemoveImageFromCache = useCallback(async (imageId: string, imageSrc: string) => {
-    try {
-      // 删除服务器上的图片文件
-      const serverDeleteSuccess = await deleteImageFromServer(imageSrc);
-      if (!serverDeleteSuccess) {
-        console.warn('服务器图片删除失败，但仍会删除本地缓存');
-      }
-
-      // 删除本地缓存
-      removeImageFromCache(imageId);
-      loadCachedImages(); // 刷新缓存列表
-
-      console.log('图片删除完成');
-    } catch (error) {
-      console.error('删除图片时发生错误:', error);
-      // 即使服务器删除失败，也删除本地缓存
-      removeImageFromCache(imageId);
-      loadCachedImages();
-    }
-  }, [loadCachedImages]);
+  }, [uploadImage, insertImage, setIsUploadingImage, refreshFileHistory]);
 
   return {
-    saveImagesToCacheDebounced,
-    loadCachedImages,
     insertImage,
     handleImagePaste,
-    handleImageDrop,
-    restoreImageFromCache,
-    handleClearImageCache,
-    handleRemoveImageFromCache
+    handleImageDrop
   };
 };

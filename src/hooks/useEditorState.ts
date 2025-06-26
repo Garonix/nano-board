@@ -4,7 +4,14 @@
  */
 
 import { useState, useCallback } from 'react';
-import { ContentBlock, EditorState, ImageCacheItem, TextHistoryItem, HistorySidebarType } from '@/types';
+import {
+  ContentBlock,
+  EditorState,
+  HistorySidebarType,
+  LocalImageFileItem,
+  LocalTextFileItem,
+  FileHistoryLoadingState
+} from '@/types';
 
 /**
  * 编辑器状态管理 Hook
@@ -25,8 +32,15 @@ export const useEditorState = () => {
   // 历史侧边栏相关状态
   const [showHistorySidebar, setShowHistorySidebar] = useState(false);
   const [historySidebarType, setHistorySidebarType] = useState<HistorySidebarType>('images');
-  const [cachedImages, setCachedImages] = useState<ImageCacheItem[]>([]);
-  const [textHistory, setTextHistory] = useState<TextHistoryItem[]>([]);
+
+  // 本地文件历史相关状态（统一数据源）
+  const [localImageFiles, setLocalImageFiles] = useState<LocalImageFileItem[]>([]);
+  const [localTextFiles, setLocalTextFiles] = useState<LocalTextFileItem[]>([]);
+  const [fileHistoryLoadingState, setFileHistoryLoadingState] = useState<FileHistoryLoadingState>({
+    isLoading: false,
+    error: null,
+    lastUpdated: null
+  });
 
   // 更新文本块内容
   const updateBlockContent = useCallback((blockId: string, content: string) => {
@@ -250,8 +264,10 @@ export const useEditorState = () => {
     focusedBlockId,
     showHistorySidebar,
     historySidebarType,
-    cachedImages,
-    textHistory
+    // 本地文件历史相关状态（统一数据源）
+    localImageFiles,
+    localTextFiles,
+    fileHistoryLoadingState
   };
 
   return {
@@ -269,8 +285,10 @@ export const useEditorState = () => {
     setFocusedBlockId,
     setShowHistorySidebar,
     setHistorySidebarType,
-    setCachedImages,
-    setTextHistory,
+    // 本地文件历史状态更新函数
+    setLocalImageFiles,
+    setLocalTextFiles,
+    setFileHistoryLoadingState,
 
     // 业务逻辑函数
     updateBlockContent,

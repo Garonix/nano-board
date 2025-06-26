@@ -9,7 +9,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { cn, formatTimestamp, saveImagesToCache } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { BoardEditorProps } from '@/types';
 import { markdownComponents } from '@/lib/markdownComponents';
 import { adjustTextareaHeight, updateAllTextareasHeight } from '@/lib/textareaUtils';
@@ -23,6 +23,7 @@ import { useDataPersistence } from '@/hooks/useDataPersistence';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useTextManager } from '@/hooks/useTextManager';
+import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
 
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 使用自定义 Hooks 管理状态和逻辑
@@ -38,8 +39,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setFocusedBlockId,
     setShowHistorySidebar,
     setHistorySidebarType,
-    setCachedImages,
-    setTextHistory,
+    setLocalImageFiles,
+    setLocalTextFiles,
+    setFileHistoryLoadingState,
     updateBlockContent,
     deleteBlock,
     deleteEmptyTextBlock,
@@ -61,31 +63,36 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     focusedBlockId,
     showHistorySidebar,
     historySidebarType,
-    cachedImages,
-    textHistory
+    localImageFiles,
+    localTextFiles,
+    fileHistoryLoadingState
   } = editorState;
 
   // 内容转换 Hook
-  const { blocksToContent, contentToBlocks, extractImagesFromBlocks } = useContentConverter(isMarkdownMode);
+  const { blocksToContent, contentToBlocks } = useContentConverter(isMarkdownMode);
 
-  // 图片管理 Hook
+  // 文件历史管理 Hook
   const {
-    saveImagesToCacheDebounced,
-    loadCachedImages,
+    refreshFileHistory,
+    getLocalTextFileContent,
+    deleteLocalFile,
+    clearAllLocalFiles
+  } = useFileHistoryManager(
+    setLocalImageFiles,
+    setLocalTextFiles,
+    setFileHistoryLoadingState
+  );
+
+  // 图片管理 Hook（简化版）
+  const {
     handleImagePaste,
-    handleImageDrop,
-    restoreImageFromCache,
-    handleClearImageCache,
-    handleRemoveImageFromCache
+    handleImageDrop
   } = useImageManager(
-    blocks,
     setBlocks,
     isMarkdownMode,
-    focusedBlockId,
     contentToBlocks,
-    extractImagesFromBlocks,
-    setCachedImages,
-    setIsUploadingImage
+    setIsUploadingImage,
+    refreshFileHistory
   );
 
   // 滚动同步 Hook
@@ -123,14 +130,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     handleImageDrop
   );
 
-  // 文本管理 Hook
+  // 文本管理 Hook（简化版）
   const {
-    saveTextToFile,
-    loadTextHistory,
-    getTextContent,
-    deleteTextFile,
-    clearAllTextFiles
-  } = useTextManager(setTextHistory);
+    saveTextToFile
+  } = useTextManager();
+
+
 
   // 引用
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -162,10 +167,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   };
 
-  // 处理从文本历史恢复内容
-  const handleRestoreTextFromHistory = async (fileName: string) => {
+  // 注意：文本历史恢复功能已移除，统一使用本地文件恢复
+
+  // 处理从本地文本文件恢复内容
+  const handleRestoreLocalTextFile = async (fileName: string) => {
     try {
-      const content = await getTextContent(fileName);
+      const content = await getLocalTextFileContent(fileName);
       if (content) {
         // 在普通模式下，智能插入内容（优先使用空文本框）
         if (!isMarkdownMode) {
@@ -177,11 +184,93 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         }
         setShowHistorySidebar(false);
       } else {
-        alert('无法读取文本内容');
+        alert('无法读取本地文本文件内容');
       }
     } catch (error) {
-      console.error('恢复文本时发生错误:', error);
-      alert('恢复文本失败，请重试');
+      console.error('恢复本地文本文件时发生错误:', error);
+      alert('恢复本地文本文件失败，请重试');
+    }
+  };
+
+  // 处理插入本地图片文件
+  const handleInsertLocalImageFile = (imagePath: string, fileName: string) => {
+    try {
+      const altText = fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名作为alt文本
+
+      if (isMarkdownMode) {
+        // 在Markdown模式下插入图片
+        const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+        if (textarea) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const value = textarea.value;
+
+          const imageMarkdown = `![${altText}](${imagePath})  \n`;
+          const newValue = value.slice(0, start) + imageMarkdown + value.slice(end);
+
+          const newBlocks = contentToBlocks(newValue);
+          setBlocks(newBlocks);
+
+          // 设置光标位置
+          setTimeout(() => {
+            const newCursorPos = start + imageMarkdown.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+            textarea.focus();
+          }, 0);
+        }
+      } else {
+        // 在普通模式下插入图片到页面末尾
+        const newImageBlock = {
+          id: Date.now().toString(),
+          type: 'image' as const,
+          content: imagePath,
+          alt: altText
+        };
+        setBlocks(prev => [...prev, newImageBlock]);
+      }
+
+      setShowHistorySidebar(false);
+    } catch (error) {
+      console.error('插入本地图片文件时发生错误:', error);
+      alert('插入本地图片文件失败，请重试');
+    }
+  };
+
+  // 处理删除本地文件
+  const handleDeleteLocalFile = async (fileName: string, fileType: 'image' | 'text') => {
+    if (!window.confirm(`确定要删除这个${fileType === 'image' ? '图片' : '文本'}文件吗？`)) {
+      return;
+    }
+
+    try {
+      const success = await deleteLocalFile(fileName, fileType);
+      if (success) {
+        // 刷新文件历史
+        await refreshFileHistory();
+        alert('文件删除成功！');
+      } else {
+        alert('文件删除失败，请重试');
+      }
+    } catch (error) {
+      console.error('删除本地文件时发生错误:', error);
+      alert('删除本地文件失败，请重试');
+    }
+  };
+
+  // 处理清除所有本地文件
+  const handleClearAllLocalFiles = async (fileType: 'image' | 'text') => {
+    try {
+      const success = await clearAllLocalFiles(fileType);
+      if (success) {
+        // 刷新文件历史
+        await refreshFileHistory();
+        alert(`所有${fileType === 'image' ? '图片' : '文本'}文件清除成功！`);
+      } else {
+        alert(`清除${fileType === 'image' ? '图片' : '文本'}文件失败，请重试`);
+      }
+    } catch (error) {
+      console.error('清除本地文件时发生错误:', error);
+      alert(`清除${fileType === 'image' ? '图片' : '文本'}文件失败，请重试`);
     }
   };
 
@@ -199,15 +288,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   // 初始化
   useEffect(() => {
-    loadCachedImages(); // 加载图片缓存
-    loadTextHistory(); // 加载文本历史
-
     // 加载保存的设置
     const savedMode = localStorage.getItem('nano-board-markdown-mode');
     const savedPreview = localStorage.getItem('nano-board-markdown-preview');
     if (savedMode) setIsMarkdownMode(savedMode === 'true');
     if (savedPreview) setShowMarkdownPreview(savedPreview === 'true');
-  }, [loadCachedImages, loadTextHistory, setIsMarkdownMode, setShowMarkdownPreview]);
+  }, [setIsMarkdownMode, setShowMarkdownPreview]);
 
   // 当模式切换时重新加载对应的数据
   useEffect(() => {
@@ -235,9 +321,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   useEffect(() => {
     if (blocks.length > 0 && !isLoading) {
       debouncedSave(blocks);
-      saveImagesToCacheDebounced();
     }
-  }, [blocks, isLoading, debouncedSave, saveImagesToCacheDebounced]);
+  }, [blocks, isLoading, debouncedSave]);
 
   // 保存设置
   useEffect(() => {
@@ -339,17 +424,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         <div className="flex items-center gap-4">
           {/* 历史记录按钮 */}
           <button
-            onClick={() => {
+            onClick={async () => {
               setShowHistorySidebar(!showHistorySidebar);
               if (!showHistorySidebar) {
-                loadCachedImages(); // 打开时刷新图片缓存
-                loadTextHistory(); // 打开时刷新文本历史
+                // 打开时刷新本地文件历史
+                await refreshFileHistory(); // 刷新本地文件历史
               }
             }}
             className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             title="查看历史记录"
+            disabled={fileHistoryLoadingState.isLoading}
           >
-            历史
+            {fileHistoryLoadingState.isLoading ? '加载中...' : '历史'}
           </button>
 
           {isUploadingImage && (
@@ -472,12 +558,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             }, 0);
                           }}
                           onBlur={() => {
-                            // 失去焦点时立即保存图片到缓存
-                            const images = extractImagesFromBlocks(blocks);
-                            if (images.length > 0) {
-                              saveImagesToCache(images);
-                              loadCachedImages(); // 刷新图片缓存列表
-                            }
+                            // 图片已通过上传自动保存到文件系统，无需额外缓存操作
                           }}
                           className={cn(
                             "w-full p-3 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-white textarea-no-scrollbar",
@@ -593,12 +674,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   onKeyDown={handleMarkdownKeyDown}
                   onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
                   onBlur={() => {
-                    // 失去焦点时立即保存图片到缓存
-                    const images = extractImagesFromBlocks(blocks);
-                    if (images.length > 0) {
-                      saveImagesToCache(images);
-                      loadCachedImages(); // 刷新图片缓存列表
-                    }
+                    // 图片已通过上传自动保存到文件系统，无需额外缓存操作
                   }}
                   className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg"
                   placeholder="开始输入Markdown内容，支持粘贴图片..."
@@ -696,152 +772,196 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           <div className="flex-1 overflow-auto">
             {/* 操作按钮区域 */}
             <div className="p-4 border-b border-gray-200 bg-gray-50">
-              {historySidebarType === 'images' ? (
-                <button
-                  onClick={() => handleClearImageCache(cachedImages)}
-                  className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                  title="清除所有图片缓存"
-                >
-                  清除所有图片缓存
-                </button>
-              ) : (
-                <button
-                  onClick={() => clearAllTextFiles(textHistory)}
-                  className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                  title="删除所有文本文件"
-                >
-                  删除所有文本文件
-                </button>
+              {/* 加载状态显示 */}
+              {fileHistoryLoadingState.isLoading && (
+                <div className="flex items-center justify-center mb-3 text-blue-600">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                  <span className="text-sm">扫描文件中...</span>
+                </div>
               )}
+
+              {/* 错误状态显示 */}
+              {fileHistoryLoadingState.error && (
+                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
+                  {fileHistoryLoadingState.error}
+                </div>
+              )}
+
+              {/* 操作按钮 */}
+              <div className="space-y-2">
+                {historySidebarType === 'images' ? (
+                  <button
+                    onClick={() => handleClearAllLocalFiles('image')}
+                    className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                    title="删除所有本地图片文件"
+                    disabled={fileHistoryLoadingState.isLoading}
+                  >
+                    删除所有图片文件
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleClearAllLocalFiles('text')}
+                    className="w-full px-3 py-2 text-sm bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                    title="删除所有本地文本文件"
+                    disabled={fileHistoryLoadingState.isLoading}
+                  >
+                    删除所有本地文本文件
+                  </button>
+                )}
+
+                {/* 刷新按钮 */}
+                <button
+                  onClick={refreshFileHistory}
+                  className="w-full px-3 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                  title="刷新文件列表"
+                  disabled={fileHistoryLoadingState.isLoading}
+                >
+                  {fileHistoryLoadingState.isLoading ? '刷新中...' : '刷新列表'}
+                </button>
+              </div>
             </div>
 
             {/* 列表内容 */}
             <div className="p-4">
               {historySidebarType === 'images' ? (
-                // 图片缓存列表
-                cachedImages.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <div className="text-4xl mb-4">🖼️</div>
-                    <p>暂无图片缓存</p>
-                    <p className="text-sm mt-2">上传图片后会自动保存到缓存</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {cachedImages.map((image) => (
-                      <div
-                        key={image.id}
-                        className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
-                      >
-                        {/* 图片项头部 */}
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
-                            {/* 从URL中提取文件名显示，如果没有则使用alt文本 */}
-                            {image.src.split('/').pop()?.replace(/\.[^/.]+$/, '') || image.alt || '未命名图片'}
-                          </h4>
-                          <div className="flex items-center gap-2 ml-2">
-                            <span className="text-xs text-gray-500 flex-shrink-0">
-                              {formatTimestamp(image.timestamp)}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveImageFromCache(image.id, image.src);
-                              }}
-                              className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                              title="删除此图片缓存"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 图片预览 */}
-                        <div className="mb-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={image.src}
-                            alt={image.alt}
-                            className="w-full h-32 object-cover rounded border border-gray-200"
-                          />
-                        </div>
-
-                        {/* 操作按钮 */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => restoreImageFromCache(image)}
-                            className="flex-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                          >
-                            插入到编辑器
-                          </button>
-                        </div>
+                <div className="space-y-6">
+                  {/* 本地图片文件列表 */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                      本地图片文件 ({localImageFiles.length})
+                    </h4>
+                    {localImageFiles.length === 0 ? (
+                      <div className="text-center text-gray-400 py-4 text-sm">
+                        暂无本地图片文件
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-3">
+                        {localImageFiles.map((imageFile) => (
+                          <div
+                            key={imageFile.id}
+                            className="border border-gray-200 rounded-lg p-3 hover:border-green-300 hover:shadow-sm hover:bg-green-50 transition-all group"
+                          >
+                            {/* 图片文件项头部 */}
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
+                                {imageFile.fileName.replace(/\.[^/.]+$/, '')}
+                              </h4>
+                              <div className="flex items-center gap-2 ml-2">
+                                <span className="text-xs text-gray-500 flex-shrink-0">
+                                  {new Date(imageFile.modifiedAt).toLocaleDateString('zh-CN', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteLocalFile(imageFile.fileName, 'image');
+                                  }}
+                                  className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                  title="删除此图片文件"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* 图片预览 */}
+                            <div className="mb-3">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={imageFile.filePath}
+                                alt={imageFile.fileName}
+                                className="w-full h-32 object-cover rounded border border-gray-200"
+                              />
+                            </div>
+
+                            {/* 操作按钮 */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleInsertLocalImageFile(imageFile.filePath, imageFile.fileName)}
+                                className="flex-1 px-3 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                              >
+                                插入到编辑器
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )
+                </div>
               ) : (
-                // 文本历史列表
-                textHistory.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <div className="text-4xl mb-4">📝</div>
-                    <p>暂无保存的文本</p>
-                    <p className="text-sm mt-2">使用保存按钮保存文本后会显示在这里</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {textHistory.map((textItem) => (
-                      <div
-                        key={textItem.id}
-                        className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
-                      >
-                        {/* 文本项头部 */}
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
-                            {textItem.fileName.replace('.txt', '')}
-                          </h4>
-                          <div className="flex items-center gap-2 ml-2">
-                            <span className="text-xs text-gray-500 flex-shrink-0">
-                              {new Date(textItem.createdAt).toLocaleDateString('zh-CN', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (window.confirm('确定要删除这个文本文件吗？')) {
-                                  deleteTextFile(textItem.fileName);
-                                }
-                              }}
-                              className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                              title="删除此文本文件"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* 文本预览 */}
-                        <div className="mb-3">
-                          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border line-clamp-3">
-                            {textItem.preview}
-                          </div>
-                        </div>
-
-                        {/* 操作按钮 */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleRestoreTextFromHistory(textItem.fileName)}
-                            className="flex-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                          >
-                            插入到编辑器
-                          </button>
-                        </div>
+                <div className="space-y-6">
+                  {/* 本地文本文件列表 */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                      本地文本文件 ({localTextFiles.length})
+                    </h4>
+                    {localTextFiles.length === 0 ? (
+                      <div className="text-center text-gray-400 py-4 text-sm">
+                        暂无本地文本文件
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-3">
+                        {localTextFiles.map((textFile) => (
+                          <div
+                            key={textFile.id}
+                            className="border border-gray-200 rounded-lg p-3 hover:border-green-300 hover:shadow-sm hover:bg-green-50 transition-all group"
+                          >
+                            {/* 文本文件项头部 */}
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
+                                {textFile.fileName.replace('.txt', '')}
+                              </h4>
+                              <div className="flex items-center gap-2 ml-2">
+                                <span className="text-xs text-gray-500 flex-shrink-0">
+                                  {new Date(textFile.modifiedAt).toLocaleDateString('zh-CN', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteLocalFile(textFile.fileName, 'text');
+                                  }}
+                                  className="w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                  title="删除此文本文件"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* 文本预览 */}
+                            <div className="mb-3">
+                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border line-clamp-3">
+                                {textFile.preview}
+                              </div>
+                            </div>
+
+                            {/* 操作按钮 */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRestoreLocalTextFile(textFile.fileName)}
+                                className="flex-1 px-3 py-1.5 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                              >
+                                插入到编辑器
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )
+                </div>
               )}
             </div>
           </div>

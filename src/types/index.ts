@@ -27,28 +27,39 @@ export interface ImageData {
   alt: string;
 }
 
-// 图片缓存项类型
-export interface ImageCacheItem {
-  id: string;
-  src: string;
-  alt: string;
-  timestamp: Date;
-  fileSize?: number; // 文件大小（可选）
-}
+// 注意：ImageCacheItem 类型已移除，统一使用 LocalImageFileItem
 
-// 本地图片缓存数据类型
-export interface LocalImageCacheData {
-  items: ImageCacheItem[];
-  lastUpdated: Date;
-}
+// 注意：TextHistoryItem 类型已移除，统一使用 LocalTextFileItem
 
-// 文本历史项类型
-export interface TextHistoryItem {
+// 本地文件项类型（用于文件系统扫描）
+export interface LocalFileItem {
   id: string;
   fileName: string;
-  preview: string;
-  createdAt: string;
+  filePath: string;
   size: number;
+  modifiedAt: string;
+  type: 'image' | 'text';
+}
+
+// 本地图片文件项类型
+export interface LocalImageFileItem extends LocalFileItem {
+  type: 'image';
+  extension: string;
+  thumbnailPath?: string; // 缩略图路径（可选）
+}
+
+// 本地文本文件项类型
+export interface LocalTextFileItem extends LocalFileItem {
+  type: 'text';
+  preview: string;
+  content?: string; // 完整内容（懒加载）
+}
+
+// 文件历史加载状态类型
+export interface FileHistoryLoadingState {
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: Date | null;
 }
 
 // 历史侧边栏类型
@@ -82,6 +93,8 @@ export interface EditorState {
   focusedBlockId: string;
   showHistorySidebar: boolean;
   historySidebarType: HistorySidebarType;
-  cachedImages: ImageCacheItem[];
-  textHistory: TextHistoryItem[];
+  // 本地文件历史相关状态（统一数据源）
+  localImageFiles: LocalImageFileItem[];
+  localTextFiles: LocalTextFileItem[];
+  fileHistoryLoadingState: FileHistoryLoadingState;
 }

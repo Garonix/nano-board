@@ -5,16 +5,7 @@
 
 import { type ClassValue, clsx } from 'clsx';
 
-// 图片缓存项类型
-interface CacheItem {
-  id: string;
-  src: string;
-  alt: string;
-  timestamp: string | Date;
-  fileSize?: number;
-}
-
-// 删除结果类型
+// 删除结果类型（保留用于服务器图片删除）
 interface DeleteResult {
   success: boolean;
   error?: string;
@@ -116,106 +107,7 @@ export function generateContentTitle(content: string, maxLength: number = 30): s
   return cleanContent.substring(0, maxLength) + '...';
 }
 
-/**
- * 本地图片缓存存储键名
- */
-const IMAGE_CACHE_STORAGE_KEY = 'nano-board-image-cache';
-const MAX_CACHE_ITEMS = 50; // 最大缓存图片数量
-
-/**
- * 保存图片到本地缓存
- * @param images 图片数据数组
- */
-export function saveImagesToCache(images: Array<{id: string, src: string, alt: string}>): void {
-  try {
-    if (images.length === 0) return; // 没有图片不保存
-
-    const existingData = localStorage.getItem(IMAGE_CACHE_STORAGE_KEY);
-    const cacheData = existingData ? JSON.parse(existingData) : { items: [], lastUpdated: new Date() };
-
-    // 为每个图片创建缓存项
-    const newItems = images.map(image => ({
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      src: image.src,
-      alt: image.alt,
-      timestamp: new Date()
-    }));
-
-    // 添加到缓存开头，避免重复
-    const existingSrcs = new Set(cacheData.items.map((item: CacheItem) => item.src));
-    const uniqueNewItems = newItems.filter(item => !existingSrcs.has(item.src));
-
-    if (uniqueNewItems.length > 0) {
-      cacheData.items.unshift(...uniqueNewItems);
-
-      // 限制缓存数量
-      if (cacheData.items.length > MAX_CACHE_ITEMS) {
-        cacheData.items = cacheData.items.slice(0, MAX_CACHE_ITEMS);
-      }
-
-      cacheData.lastUpdated = new Date();
-      localStorage.setItem(IMAGE_CACHE_STORAGE_KEY, JSON.stringify(cacheData));
-    }
-  } catch (error) {
-    console.error('保存图片缓存失败:', error);
-  }
-}
-
-/**
- * 从本地存储加载图片缓存
- * @returns 图片缓存数组
- */
-export function loadImageCache(): Array<{
-  id: string;
-  src: string;
-  alt: string;
-  timestamp: Date;
-  fileSize?: number;
-}> {
-  try {
-    const data = localStorage.getItem(IMAGE_CACHE_STORAGE_KEY);
-    if (!data) return [];
-
-    const cacheData = JSON.parse(data);
-    return cacheData.items.map((item: CacheItem) => ({
-      ...item,
-      timestamp: new Date(item.timestamp)
-    }));
-  } catch (error) {
-    console.error('加载图片缓存失败:', error);
-    return [];
-  }
-}
-
-/**
- * 清除所有本地图片缓存
- */
-export function clearImageCache(): void {
-  try {
-    localStorage.removeItem(IMAGE_CACHE_STORAGE_KEY);
-  } catch (error) {
-    console.error('清除图片缓存失败:', error);
-  }
-}
-
-/**
- * 从缓存中删除指定图片
- * @param imageId 图片ID
- */
-export function removeImageFromCache(imageId: string): void {
-  try {
-    const data = localStorage.getItem(IMAGE_CACHE_STORAGE_KEY);
-    if (!data) return;
-
-    const cacheData = JSON.parse(data);
-    cacheData.items = cacheData.items.filter((item: CacheItem) => item.id !== imageId);
-    cacheData.lastUpdated = new Date();
-
-    localStorage.setItem(IMAGE_CACHE_STORAGE_KEY, JSON.stringify(cacheData));
-  } catch (error) {
-    console.error('删除图片缓存失败:', error);
-  }
-}
+// 注意：图片缓存功能已移除，统一使用文件系统作为数据源
 
 /**
  * 删除服务器上的图片文件
@@ -254,52 +146,4 @@ export async function deleteImageFromServer(imageSrc: string): Promise<boolean> 
   }
 }
 
-/**
- * 批量删除服务器上的图片文件
- * @param imageSrcs 图片URL路径数组
- * @returns Promise<{success: boolean, results: any[]}> 删除结果
- */
-export async function batchDeleteImagesFromServer(imageSrcs: string[]): Promise<{success: boolean, results: DeleteResult[]}> {
-  try {
-    // 从URL中提取文件名
-    const fileNames = imageSrcs.map(src => src.split('/').pop()).filter(Boolean);
-
-    if (fileNames.length === 0) {
-      return { success: false, results: [] };
-    }
-
-    const response = await fetch('/api/delete-image', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ imagePaths: fileNames }),
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log('批量删除服务器图片完成:', result.message);
-
-      // 将"文件不存在"的情况也视为成功
-      const adjustedResults = result.results.map((item: DeleteResult) => ({
-        ...item,
-        success: item.success || item.error === '文件不存在'
-      }));
-
-      const successCount = adjustedResults.filter((r: DeleteResult) => r.success).length;
-      const adjustedSuccess = successCount === adjustedResults.length;
-
-      return {
-        success: adjustedSuccess,
-        results: adjustedResults
-      };
-    } else {
-      const error = await response.json();
-      console.error('批量删除服务器图片失败:', error.error);
-      return { success: false, results: [] };
-    }
-  } catch (error) {
-    console.error('批量删除服务器图片时发生错误:', error);
-    return { success: false, results: [] };
-  }
-}
+// 注意：批量删除功能已移除，使用新的本地文件管理API
