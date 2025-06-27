@@ -24,8 +24,29 @@ export const NormalModeEditor: React.FC<NormalModeEditorProps> = ({
   onHandleKeyDown,
   onHandleSaveText
 }) => {
-  // 内部管理悬停状态
+  // 内部管理悬停状态和复制状态
   const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
+  const [copyingBlockId, setCopyingBlockId] = useState<string | null>(null);
+
+  /**
+   * 处理复制文本内容到剪贴板
+   * @param content 要复制的文本内容
+   * @param blockId 文本块ID，用于显示复制状态
+   */
+  const handleCopyText = async (content: string, blockId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopyingBlockId(blockId);
+      // 显示复制成功状态1秒后恢复
+      setTimeout(() => {
+        setCopyingBlockId(null);
+      }, 1000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      // 复制失败时也要清除状态
+      setCopyingBlockId(null);
+    }
+  };
   return (
     <div className="w-full h-full overflow-auto p-2">
       {/* 添加响应式左右边距，缩减文本框宽度以提升阅读体验，保持居中显示 */}
@@ -56,6 +77,14 @@ export const NormalModeEditor: React.FC<NormalModeEditorProps> = ({
                       ) : (
                         // 非空文本框显示完整按钮组
                         <>
+                          <button
+                            onClick={() => handleCopyText(block.content, block.id)}
+                            className="w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
+                            title="复制"
+                          >
+                            {/* 显示复制状态或复制图标 */}
+                            {copyingBlockId === block.id ? '✓' : '⧉'}
+                          </button>
                           <button
                             onClick={() => onHandleSaveText(block.content)}
                             disabled={isSavingText}

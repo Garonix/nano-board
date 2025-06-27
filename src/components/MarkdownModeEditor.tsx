@@ -6,7 +6,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -27,6 +27,28 @@ export const MarkdownModeEditor: React.FC<MarkdownModeEditorProps> = ({
   onSyncScrollFromEditor,
   onSyncScrollFromPreview
 }) => {
+  // 管理复制状态和悬停状态
+  const [isCopying, setIsCopying] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  /**
+   * 处理复制Markdown内容到剪贴板
+   */
+  const handleCopyMarkdown = async () => {
+    try {
+      const content = blocksToContent(blocks);
+      await navigator.clipboard.writeText(content);
+      setIsCopying(true);
+      // 显示复制成功状态1秒后恢复
+      setTimeout(() => {
+        setIsCopying(false);
+      }, 1000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      // 复制失败时也要清除状态
+      setIsCopying(false);
+    }
+  };
   // 内置的 Markdown 组件配置 - 支持完整的 Markdown 语法
   const markdownComponents = {
     // 代码块和内联代码 - 修复宽度溢出问题
@@ -213,7 +235,11 @@ export const MarkdownModeEditor: React.FC<MarkdownModeEditorProps> = ({
         showMarkdownPreview ? 'flex-1' : 'w-full'
       )}>
         {/* 文本编辑区域容器 - 应用与普通模式相同的边框样式 */}
-        <div className="h-full border rounded-lg bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-20 shadow-sm transition-all duration-200">
+        <div
+          className="h-full border rounded-lg bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-20 shadow-sm transition-all duration-200 relative"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           <textarea
             ref={editorRef}
             value={blocksToContent(blocks)}
@@ -236,6 +262,18 @@ export const MarkdownModeEditor: React.FC<MarkdownModeEditorProps> = ({
               maxHeight: 'calc(100vh - 140px)'
             }}
           />
+
+          {/* 复制按钮 - 右下角显示，hover时显示，空内容时不显示 */}
+          {blocksToContent(blocks).trim() && isHovered && (
+            <button
+              onClick={handleCopyMarkdown}
+              className="absolute bottom-2 right-2 w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center z-10"
+              title="复制"
+            >
+              {/* 显示复制状态或复制图标 */}
+              {isCopying ? '✓' : '⧉'}
+            </button>
+          )}
         </div>
       </div>
 
