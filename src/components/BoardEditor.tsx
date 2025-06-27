@@ -1,22 +1,41 @@
 /**
- * 简单白板编辑器
+ * 简单白板编辑器 - 完全自包含版本
  * 普通模式：大文本框，支持文字和图片粘贴
- * Markdown模式：支持Markdown语法
+ * Markdown模式：支持Markdown语法和实时预览
+ *
+ * 架构特点：
+ * - 完全自包含：所有编辑器逻辑都内联在此组件中，无外部编辑器子组件依赖
+ * - 双模式预渲染：通过CSS控制显示/隐藏实现零延迟切换
+ * - 独立数据状态：两种模式使用完全独立的数据存储
+ * - 内置Markdown组件：包含完整的Markdown渲染配置和样式
+ * - 统一事件处理：所有用户交互都在此组件中统一处理
  */
 
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '@/lib/utils';
-import { BoardEditorProps } from '@/types';
-import { updateAllTextareasHeight } from '@/lib/textareaUtils';
+import { BoardEditorProps, ContentBlock } from '@/types';
+import { updateAllTextareasHeight, adjustTextareaHeight } from '@/lib/textareaUtils';
+
+// 简单的防抖函数实现
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(null, args), wait);
+  }) as T;
+}
 
 // 自定义 Hooks
 import { useEditorState } from '@/hooks/useEditorState';
 import { useContentConverter } from '@/hooks/useContentConverter';
 import { useImageManager } from '@/hooks/useImageManager';
 import { useScrollSync } from '@/hooks/useScrollSync';
-import { useDataPersistence } from '@/hooks/useDataPersistence';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 
@@ -25,19 +44,15 @@ import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
 // 组件
 import { HistorySidebar } from './HistorySidebar';
 import { TopNavbar } from './TopNavbar';
-import { NormalModeEditor } from './NormalModeEditor';
-import { MarkdownModeEditor } from './MarkdownModeEditor';
 import { FileOperationsManager } from './FileOperationsManager';
 
 import { DragDropOverlay } from './DragDropOverlay';
 import { LoadingSpinner } from './LoadingSpinner';
 
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
-  // 使用自定义 Hooks 管理状态和逻辑
+  // 使用自定义 Hooks 管理基础状态和逻辑
   const {
     editorState,
-    isSingleTextBlock,
-    setBlocks,
     setIsMarkdownMode,
     setShowMarkdownPreview,
     setIsLoading,
@@ -48,19 +63,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setHistorySidebarType,
     setLocalImageFiles,
     setLocalTextFiles,
-    setFileHistoryLoadingState,
-    updateBlockContent,
-    deleteBlock,
-    deleteEmptyTextBlock,
-    clearAllBlocks,
-    addTextBlockAfter,
-    insertTextContent,
-    clearTextBlockContent
+    setFileHistoryLoadingState
   } = useEditorState();
 
   // 解构编辑器状态
   const {
-    blocks,
     isMarkdownMode,
     showMarkdownPreview,
     isLoading,
@@ -74,8 +81,261 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     fileHistoryLoadingState
   } = editorState;
 
-  // 内容转换 Hook
-  const { blocksToContent, contentToBlocks } = useContentConverter(isMarkdownMode);
+  // 双模式独立数据状态
+  const [normalBlocks, setNormalBlocks] = useState<ContentBlock[]>([
+    { id: '1', type: 'text', content: '' }
+  ]);
+  const [markdownBlocks, setMarkdownBlocks] = useState<ContentBlock[]>([
+    { id: '1', type: 'text', content: '' }
+  ]);
+
+  // 内联组件状态 - 来自 NormalModeEditor
+  const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
+  const [copyingBlockId, setCopyingBlockId] = useState<string | null>(null);
+
+  // 内联组件状态 - 来自 MarkdownModeEditor
+  const [isCopying, setIsCopying] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // 获取当前活跃的数据块
+  const currentBlocks = isMarkdownMode ? markdownBlocks : normalBlocks;
+  const setCurrentBlocks = isMarkdownMode ? setMarkdownBlocks : setNormalBlocks;
+
+  // 计算是否为单个文本框场景（只有一个文本框且无图片）- 分别为两种模式计算
+  const isSingleNormalTextBlock = normalBlocks.length === 1 &&
+                                  normalBlocks[0].type === 'text' &&
+                                  !normalBlocks.some(block => block.type === 'image');
+
+  const isSingleMarkdownTextBlock = markdownBlocks.length === 1 &&
+                                    markdownBlocks[0].type === 'text' &&
+                                    !markdownBlocks.some(block => block.type === 'image');
+
+  // 当前模式下的单文本框状态
+  const currentIsSingleTextBlock = isMarkdownMode ? isSingleMarkdownTextBlock : isSingleNormalTextBlock;
+
+  // 内容转换 Hook - 为两种模式分别创建
+  const normalConverter = useContentConverter(false);
+  const markdownConverter = useContentConverter(true);
+
+  // 内联函数 - 来自 NormalModeEditor
+  /**
+   * 处理复制文本内容到剪贴板
+   * @param content 要复制的文本内容
+   * @param blockId 文本块ID，用于显示复制状态
+   */
+  const handleCopyText = useCallback(async (content: string, blockId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopyingBlockId(blockId);
+      // 显示复制成功状态1秒后恢复
+      setTimeout(() => {
+        setCopyingBlockId(null);
+      }, 1000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      // 复制失败时也要清除状态
+      setCopyingBlockId(null);
+    }
+  }, []);
+
+  // 内联函数 - 来自 MarkdownModeEditor
+  /**
+   * 处理复制Markdown内容到剪贴板
+   */
+  const handleCopyMarkdown = useCallback(async () => {
+    try {
+      const content = markdownConverter.blocksToContent(markdownBlocks);
+      await navigator.clipboard.writeText(content);
+      setIsCopying(true);
+      // 显示复制成功状态1秒后恢复
+      setTimeout(() => {
+        setIsCopying(false);
+      }, 1000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      // 复制失败时也要清除状态
+      setIsCopying(false);
+    }
+  }, [markdownConverter, markdownBlocks]);
+
+  // 内置的 Markdown 组件配置 - 支持完整的 Markdown 语法
+  const markdownComponents = {
+    // 代码块和内联代码 - 修复宽度溢出问题
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    code(props: any) {
+      const { inline, className, children, ...rest } = props;
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={tomorrow}
+          language={match[1]}
+          PreTag="div"
+          className="rounded-lg shadow-sm border border-gray-200 my-4 max-w-full"
+          wrapLongLines={true}
+          customStyle={{
+            maxWidth: '100%',
+            overflowX: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word'
+          }}
+          {...rest}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={cn('bg-gray-100 px-2 py-1 rounded text-sm font-mono text-red-600 break-words', className)} {...rest}>
+          {children}
+        </code>
+      );
+    },
+
+    // 图片组件 - 优化显示，不显示alt文本
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    img(props: any) {
+      const { src, alt, ...rest } = props;
+      return (
+        <span className="inline-block my-6 text-center w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full h-auto rounded-lg shadow-sm block mx-auto"
+            style={{
+              maxHeight: '300px',
+              objectFit: 'contain'
+            }}
+            {...rest}
+          />
+        </span>
+      );
+    },
+
+    // 标题组件 - 确保正确渲染
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h1(props: any) {
+      return <h1 className="text-3xl font-bold text-gray-900 mb-6 mt-8 pb-2 border-b border-gray-200" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h2(props: any) {
+      return <h2 className="text-2xl font-semibold text-gray-800 mb-4 mt-6 pb-1 border-b border-gray-100" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h3(props: any) {
+      return <h3 className="text-xl font-semibold text-gray-800 mb-3 mt-5" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h4(props: any) {
+      return <h4 className="text-lg font-medium text-gray-700 mb-2 mt-4" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h5(props: any) {
+      return <h5 className="text-base font-medium text-gray-700 mb-2 mt-3" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    h6(props: any) {
+      return <h6 className="text-sm font-medium text-gray-600 mb-2 mt-3" {...props} />;
+    },
+
+    // 段落组件
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    p(props: any) {
+      const { children, ...rest } = props;
+
+      // 检查子元素中是否包含图片
+      const hasImage = React.Children.toArray(children).some((child) => {
+        if (React.isValidElement(child)) {
+          return child.type === 'img' || (child.props && typeof child.props === 'object' && child.props !== null && 'src' in child.props);
+        }
+        return false;
+      });
+
+      // 如果包含图片，使用div而不是p标签
+      if (hasImage) {
+        return <div className="mb-4" {...rest}>{children}</div>;
+      }
+
+      return <p className="mb-4 leading-relaxed text-gray-700" {...rest}>{children}</p>;
+    },
+
+    // 列表组件 - 确保正确渲染
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ul(props: any) {
+      return <ul className="list-disc list-inside mb-4 space-y-1 text-gray-700" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ol(props: any) {
+      return <ol className="list-decimal list-inside mb-4 space-y-1 text-gray-700" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    li(props: any) {
+      return <li className="mb-1" {...props} />;
+    },
+
+    // 引用块
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    blockquote(props: any) {
+      return (
+        <blockquote className="border-l-4 border-blue-500 pl-4 py-2 mb-4 bg-blue-50 text-gray-700 italic" {...props} />
+      );
+    },
+
+    // 表格组件 - 修复宽度溢出问题
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    table(props: any) {
+      return (
+        <div className="overflow-x-auto mb-4 max-w-full">
+          <table className="w-full border border-gray-200 rounded-lg" style={{ tableLayout: 'fixed', wordWrap: 'break-word' }} {...props} />
+        </div>
+      );
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    thead(props: any) {
+      return <thead className="bg-gray-50" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    th(props: any) {
+      return <th className="px-4 py-2 text-left font-semibold text-gray-700 border-b border-gray-200" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    td(props: any) {
+      return <td className="px-4 py-2 text-gray-700 border-b border-gray-100" {...props} />;
+    },
+
+    // 水平分割线
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    hr(props: any) {
+      return <hr className="my-8 border-gray-300" {...props} />;
+    },
+
+    // 强调和加粗
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    strong(props: any) {
+      return <strong className="font-bold text-gray-900" {...props} />;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    em(props: any) {
+      return <em className="italic text-gray-700" {...props} />;
+    },
+
+    // 链接
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    a(props: any) {
+      return (
+        <a
+          className="text-blue-600 hover:text-blue-800 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          {...props}
+        />
+      );
+    },
+
+    // 删除线
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    del(props: any) {
+      return <del className="line-through text-gray-500" {...props} />;
+    },
+  };
 
   // 文件历史管理 Hook（简化版）
   const {
@@ -86,14 +346,109 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setFileHistoryLoadingState
   );
 
+  // 双模式数据管理函数
+  const updateNormalBlockContent = useCallback((blockId: string, content: string) => {
+    setNormalBlocks(prev => prev.map(block =>
+      block.id === blockId ? { ...block, content } : block
+    ));
+  }, []);
+
+  const updateMarkdownBlockContent = useCallback((blockId: string, content: string) => {
+    setMarkdownBlocks(prev => prev.map(block =>
+      block.id === blockId ? { ...block, content } : block
+    ));
+  }, []);
+
+  // 删除块函数
+  const deleteNormalBlock = useCallback((blockId: string) => {
+    setNormalBlocks(prev => {
+      const filtered = prev.filter(block => block.id !== blockId);
+      return filtered.length === 0 ? [{ id: Date.now().toString(), type: 'text', content: '' }] : filtered;
+    });
+  }, []);
+
+
+
+  // 添加文本块函数
+  const addNormalTextBlockAfter = useCallback((blockId: string) => {
+    const newBlock: ContentBlock = {
+      id: Date.now().toString(),
+      type: 'text',
+      content: ''
+    };
+    setNormalBlocks(prev => {
+      const index = prev.findIndex(block => block.id === blockId);
+      const newBlocks = [...prev];
+      newBlocks.splice(index + 1, 0, newBlock);
+      return newBlocks;
+    });
+    setFocusedBlockId(newBlock.id);
+  }, [setFocusedBlockId]);
+
+
+
+  // 清空文本块内容函数
+  const clearNormalTextBlockContent = useCallback((blockId: string) => {
+    setNormalBlocks(prev => prev.map(block =>
+      block.id === blockId && block.type === 'text' ? { ...block, content: '' } : block
+    ));
+  }, []);
+
+  // 适配的文本内容插入函数 - 根据当前模式插入到对应的数据块中
+  const insertTextContentAdapted = useCallback((content: string) => {
+    if (isMarkdownMode) {
+      // Markdown 模式：查找第一个空文本框或创建新的
+      const emptyTextBlock = markdownBlocks.find(block => block.type === 'text' && block.content.trim() === '');
+
+      if (emptyTextBlock) {
+        // 如果存在空文本框，直接填入内容
+        setMarkdownBlocks(prev => prev.map(block =>
+          block.id === emptyTextBlock.id ? { ...block, content } : block
+        ));
+        setFocusedBlockId(emptyTextBlock.id);
+      } else {
+        // 如果不存在空文本框，创建新的文本框
+        const newTextBlock: ContentBlock = {
+          id: Date.now().toString(),
+          type: 'text',
+          content
+        };
+        setMarkdownBlocks(prev => [...prev, newTextBlock]);
+        setFocusedBlockId(newTextBlock.id);
+      }
+    } else {
+      // 普通模式：查找第一个空文本框或创建新的
+      const emptyTextBlock = normalBlocks.find(block => block.type === 'text' && block.content.trim() === '');
+
+      if (emptyTextBlock) {
+        // 如果存在空文本框，直接填入内容
+        setNormalBlocks(prev => prev.map(block =>
+          block.id === emptyTextBlock.id ? { ...block, content } : block
+        ));
+        setFocusedBlockId(emptyTextBlock.id);
+      } else {
+        // 如果不存在空文本框，创建新的文本框
+        const newTextBlock: ContentBlock = {
+          id: Date.now().toString(),
+          type: 'text',
+          content
+        };
+        setNormalBlocks(prev => [...prev, newTextBlock]);
+        setFocusedBlockId(newTextBlock.id);
+      }
+    }
+  }, [isMarkdownMode, markdownBlocks, normalBlocks, setFocusedBlockId]);
+
+
+
   // 图片管理 Hook（简化版）
   const {
     handleImagePaste,
     handleImageDrop
   } = useImageManager(
-    setBlocks,
+    setCurrentBlocks,
     isMarkdownMode,
-    contentToBlocks,
+    isMarkdownMode ? markdownConverter.contentToBlocks : normalConverter.contentToBlocks,
     setIsUploadingImage,
     refreshFileHistory
   );
@@ -101,28 +456,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 滚动同步 Hook
   const { editorRef, previewRef, syncScrollFromEditor, syncScrollFromPreview, cleanup: cleanupScrollSync } = useScrollSync();
 
-  // 数据持久化 Hook
-  const { loadData, debouncedSave, clearAllContent, cleanup: cleanupDataPersistence } = useDataPersistence(
-    isMarkdownMode,
-    blocksToContent,
-    contentToBlocks,
-    setBlocks,
-    setFocusedBlockId,
-    setIsLoading
-  );
-
   // 键盘事件处理 Hook
   const { handleMarkdownKeyDown, handleKeyDown } = useKeyboardHandlers(
-    blocks,
+    currentBlocks,
     isMarkdownMode,
     showMarkdownPreview,
     setIsMarkdownMode,
     setShowMarkdownPreview,
-    updateBlockContent,
-    deleteEmptyTextBlock,
+    isMarkdownMode ? updateMarkdownBlockContent : updateNormalBlockContent,
+    () => {}, // deleteEmptyTextBlock - 简化实现
     setFocusedBlockId,
-    contentToBlocks,
-    setBlocks
+    isMarkdownMode ? markdownConverter.contentToBlocks : normalConverter.contentToBlocks,
+    setCurrentBlocks
   );
 
   // 拖拽处理 Hook
@@ -132,9 +477,104 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     handleImageDrop
   );
 
-  // 引用（sidebarRef 已移除，由 HistorySidebar 组件内部管理）
+  // 双模式数据持久化
+  const loadNormalData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/board?mode=normal');
+      const data = await response.json();
+      const loadedBlocks = normalConverter.contentToBlocks(data.content || '');
+      setNormalBlocks(loadedBlocks);
+    } catch (error) {
+      console.error('加载普通模式数据失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [normalConverter, setIsLoading]);
 
-  // 初始化 - 加载设置并加载数据
+  const loadMarkdownData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/board?mode=markdown');
+      const data = await response.json();
+      const loadedBlocks = markdownConverter.contentToBlocks(data.content || '');
+      setMarkdownBlocks(loadedBlocks);
+    } catch (error) {
+      console.error('加载Markdown模式数据失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [markdownConverter, setIsLoading]);
+
+  // 防抖保存函数
+  const debouncedSaveNormal = useCallback(
+    debounce(async (blocks: ContentBlock[]) => {
+      const content = normalConverter.blocksToContent(blocks);
+      if (!content.trim()) return;
+      try {
+        await fetch('/api/board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, mode: 'normal' }),
+        });
+      } catch (error) {
+        console.error('保存普通模式数据失败:', error);
+      }
+    }, 1000),
+    [normalConverter]
+  );
+
+  const debouncedSaveMarkdown = useCallback(
+    debounce(async (blocks: ContentBlock[]) => {
+      const content = markdownConverter.blocksToContent(blocks);
+      if (!content.trim()) return;
+      try {
+        await fetch('/api/board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, mode: 'markdown' }),
+        });
+      } catch (error) {
+        console.error('保存Markdown模式数据失败:', error);
+      }
+    }, 1000),
+    [markdownConverter]
+  );
+
+  // 清空所有内容函数
+  const clearAllNormalContent = useCallback(async () => {
+    if (window.confirm('确定要清空普通模式的所有内容吗？此操作无法撤销。')) {
+      setNormalBlocks([{ id: Date.now().toString(), type: 'text', content: '' }]);
+      try {
+        await fetch('/api/board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: '', mode: 'normal' }),
+        });
+      } catch (error) {
+        console.error('清空普通模式数据失败:', error);
+      }
+    }
+  }, []);
+
+  const clearAllMarkdownContent = useCallback(async () => {
+    if (window.confirm('确定要清空Markdown模式的所有内容吗？此操作无法撤销。')) {
+      setMarkdownBlocks([{ id: Date.now().toString(), type: 'text', content: '' }]);
+      try {
+        await fetch('/api/board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: '', mode: 'markdown' }),
+        });
+      } catch (error) {
+        console.error('清空Markdown模式数据失败:', error);
+      }
+    }
+  }, []);
+
+  const clearAllCurrentContent = isMarkdownMode ? clearAllMarkdownContent : clearAllNormalContent;
+
+  // 初始化 - 加载设置并预加载两种模式的数据
   useEffect(() => {
     // 加载保存的设置
     const savedMode = localStorage.getItem('nano-board-markdown-mode');
@@ -147,23 +587,22 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       setShowMarkdownPreview(savedPreview === 'true');
     }
 
-    // 加载数据
-    loadData();
+    // 预加载两种模式的数据以实现零延迟切换
+    Promise.all([loadNormalData(), loadMarkdownData()]);
   }, []); // 只在组件挂载时执行一次
 
-  // 当模式切换时重新加载数据
+  // 自动保存 - 分别保存两种模式的数据
   useEffect(() => {
-    loadData();
-  }, [isMarkdownMode, loadData]);
-
-  // 点击外部关闭侧边栏的逻辑已移至 HistorySidebar 组件内部
-
-  // 自动保存
-  useEffect(() => {
-    if (blocks.length > 0 && !isLoading) {
-      debouncedSave(blocks);
+    if (normalBlocks.length > 0 && !isLoading) {
+      debouncedSaveNormal(normalBlocks);
     }
-  }, [blocks, isLoading, debouncedSave]);
+  }, [normalBlocks, isLoading, debouncedSaveNormal]);
+
+  useEffect(() => {
+    if (markdownBlocks.length > 0 && !isLoading) {
+      debouncedSaveMarkdown(markdownBlocks);
+    }
+  }, [markdownBlocks, isLoading, debouncedSaveMarkdown]);
 
   // 保存设置
   useEffect(() => {
@@ -179,14 +618,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     return () => {
       cleanupDragAndDrop();
       cleanupScrollSync();
-      cleanupDataPersistence();
     };
-  }, [cleanupDragAndDrop, cleanupScrollSync, cleanupDataPersistence]);
+  }, [cleanupDragAndDrop, cleanupScrollSync]);
 
   // 当文本框布局状态改变时，立即更新所有文本框高度
   useEffect(() => {
-    updateAllTextareasHeight(isSingleTextBlock);
-  }, [isSingleTextBlock]); // 依赖单个文本框状态，确保即时更新
+    updateAllTextareasHeight(currentIsSingleTextBlock);
+  }, [currentIsSingleTextBlock]); // 依赖单个文本框状态，确保即时更新
 
   if (isLoading) {
     return <LoadingSpinner message="加载中..." />;
@@ -195,11 +633,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   return (
     <FileOperationsManager
       isMarkdownMode={isMarkdownMode}
-      blocks={blocks}
-      contentToBlocks={contentToBlocks}
-      blocksToContent={blocksToContent}
-      onSetBlocks={setBlocks}
-      onInsertTextContent={insertTextContent}
+      blocks={currentBlocks}
+      contentToBlocks={isMarkdownMode ? markdownConverter.contentToBlocks : normalConverter.contentToBlocks}
+      blocksToContent={isMarkdownMode ? markdownConverter.blocksToContent : normalConverter.blocksToContent}
+      onSetBlocks={setCurrentBlocks}
+      onInsertTextContent={insertTextContentAdapted}
       onCloseHistorySidebar={() => setShowHistorySidebar(false)}
       onRefreshFileHistory={refreshFileHistory}
     >
@@ -213,7 +651,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             fileHistoryLoadingState={fileHistoryLoadingState}
             onToggleMarkdownMode={() => setIsMarkdownMode(!isMarkdownMode)}
             onToggleMarkdownPreview={() => setShowMarkdownPreview(!showMarkdownPreview)}
-            onClearAllContent={() => clearAllContent(clearAllBlocks)}
+            onClearAllContent={clearAllCurrentContent}
             onToggleHistorySidebar={async () => {
               setShowHistorySidebar(!showHistorySidebar);
               if (!showHistorySidebar) {
@@ -233,40 +671,303 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             {/* 拖拽提示覆盖层 */}
             <DragDropOverlay isDragOver={isDragOver} />
 
-            {/* 普通模式编辑器 */}
-            {!isMarkdownMode && (
-              <NormalModeEditor
-                blocks={blocks}
-                focusedBlockId={focusedBlockId}
-                isSingleTextBlock={isSingleTextBlock}
-                isSavingText={fileOperations.isSavingText}
-                onUpdateBlockContent={updateBlockContent}
-                onDeleteBlock={deleteBlock}
-                onAddTextBlockAfter={addTextBlockAfter}
-                onClearTextBlockContent={clearTextBlockContent}
-                onSetFocusedBlockId={setFocusedBlockId}
-                onHandleImagePaste={handleImagePaste}
-                onHandleKeyDown={handleKeyDown}
-                onHandleSaveText={fileOperations.handleSaveText}
-              />
-            )}
+            {/* 普通模式编辑器 - 预渲染，通过CSS控制显示/隐藏 */}
+            <div
+              className={cn(
+                'w-full h-full absolute inset-0',
+                isMarkdownMode ? 'invisible opacity-0 pointer-events-none' : 'visible opacity-100'
+              )}
+              style={{
+                transition: 'opacity 0ms', // 零延迟切换
+              }}
+            >
+              {/* 普通模式编辑器内联内容 */}
+              <div className="w-full h-full overflow-auto p-2">
+                {/* 添加响应式左右边距，缩减文本框宽度以提升阅读体验，保持居中显示 */}
+                {/* 大屏幕：左右各300px边距，中等屏幕：150px，小屏幕：20px */}
+                <div className="max-w-none space-y-3 mx-auto px-5 md:px-[150px] xl:px-[300px] min-w-0">
+                  {normalBlocks.map((block, index) => {
+                    return (
+                      <div key={block.id} className="relative group">
+                        {block.type === 'text' ? (
+                          <div
+                            className="relative"
+                            onMouseEnter={() => setHoveredTextBlockId(block.id)}
+                            onMouseLeave={() => setHoveredTextBlockId(null)}
+                          >
+                            {/* 文本框操作按钮组 - 悬停时显示 */}
+                            {hoveredTextBlockId === block.id && (
+                              <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                {/* 空文本框只显示删除按钮 */}
+                                {!block.content.trim() ? (
+                                  <button
+                                    onClick={() => deleteNormalBlock(block.id)}
+                                    className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
+                                    title="删除此文本框"
+                                  >
+                                    {/* 使用简单的红叉图标 */}
+                                    ✕
+                                  </button>
+                                ) : (
+                                  // 非空文本框显示完整按钮组
+                                  <>
+                                    <button
+                                      onClick={() => handleCopyText(block.content, block.id)}
+                                      className="w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
+                                      title="复制"
+                                    >
+                                      {/* 显示复制状态或复制图标 */}
+                                      {copyingBlockId === block.id ? '✓' : '⧉'}
+                                    </button>
+                                    <button
+                                      onClick={() => fileOperations.handleSaveText(block.content)}
+                                      disabled={fileOperations.isSavingText}
+                                      className="w-5 h-5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center font-bold"
+                                      title="保存"
+                                    >
+                                      {/* 使用简单的下箭头图标表示保存 */}
+                                      {fileOperations.isSavingText ? '...' : '↓'}
+                                    </button>
+                                    <button
+                                      onClick={() => clearNormalTextBlockContent(block.id)}
+                                      className="w-5 h-5 bg-orange-500 hover:bg-orange-600 text-white text-s rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
+                                      title="清空"
+                                    >
+                                      {/* 使用简单的循环符号表示清空重置 */}
+                                      ↻
+                                    </button>
+                                    <button
+                                      onClick={() => deleteNormalBlock(block.id)}
+                                      className="w-5 h-5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center"
+                                      title="删除"
+                                    >
+                                      {/* 使用简单的红叉图标 */}
+                                      ✕
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
 
-            {/* Markdown 模式编辑器 */}
-            {isMarkdownMode && (
-              <MarkdownModeEditor
-                blocks={blocks}
-                showMarkdownPreview={showMarkdownPreview}
-                editorRef={editorRef}
-                previewRef={previewRef}
-                blocksToContent={blocksToContent}
-                contentToBlocks={contentToBlocks}
-                onSetBlocks={setBlocks}
-                onHandleImagePaste={handleImagePaste}
-                onHandleMarkdownKeyDown={handleMarkdownKeyDown}
-                onSyncScrollFromEditor={showMarkdownPreview ? syncScrollFromEditor : undefined}
-                onSyncScrollFromPreview={syncScrollFromPreview}
-              />
-            )}
+                            <textarea
+                              ref={(el) => {
+                                if (el && focusedBlockId === block.id) {
+                                  // 当获得焦点时自动调整高度
+                                  setTimeout(() => {
+                                    adjustTextareaHeight(el, block.content, isSingleNormalTextBlock);
+                                  }, 0);
+                                }
+                              }}
+                              data-block-id={block.id}
+                              value={block.content}
+                              onChange={(e) => {
+                                const newContent = e.target.value;
+                                updateNormalBlockContent(block.id, newContent);
+
+                                // 智能调整高度
+                                const target = e.target as HTMLTextAreaElement;
+                                adjustTextareaHeight(target, newContent, isSingleNormalTextBlock);
+                              }}
+                              onPaste={handleImagePaste}
+                              onKeyDown={(e) => handleKeyDown(e, block.id)}
+                              onFocus={(e) => {
+                                setFocusedBlockId(block.id);
+                                // 聚焦时调整高度
+                                const target = e.target as HTMLTextAreaElement;
+                                setTimeout(() => {
+                                  adjustTextareaHeight(target, block.content, isSingleNormalTextBlock);
+                                }, 0);
+                              }}
+                              onBlur={() => {
+                                // 图片已通过上传自动保存到文件系统，无需额外缓存操作
+                              }}
+                              className={cn(
+                                "w-full p-3 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-white textarea-no-scrollbar",
+                                focusedBlockId === block.id
+                                  ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-20 shadow-sm"
+                                  : "border-gray-200 hover:border-gray-300",
+                                isSingleNormalTextBlock
+                                  ? "min-h-[25rem] max-h-[25rem]"
+                                  : "min-h-[2.5rem] max-h-[10rem]"
+                              )}
+                              placeholder={
+                                index === 0 && !block.content
+                                  ? "开始输入内容，支持粘贴或拖拽图片..."
+                                  : block.content
+                                    ? ""
+                                    : "继续输入..."
+                              }
+                              spellCheck={false}
+                              style={{
+                                height: isSingleNormalTextBlock
+                                  ? '25rem'
+                                  : 'auto',
+                                minHeight: isSingleNormalTextBlock
+                                  ? '25rem'
+                                  : '2.5rem',
+                                maxHeight: isSingleNormalTextBlock
+                                  ? '25rem'
+                                  : '10rem',
+                                overflowY: 'auto' // 启用垂直滚动，支持滚轮操作
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full text-center my-4">
+                            {/* 图片容器 - 限制最大高度300px，修复删除按钮定位 */}
+                            <div className="relative inline-block bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 max-w-full group">
+                              {/* 图片删除按钮 - 精确定位在图片元素右上角 */}
+                              <button
+                                onClick={() => deleteNormalBlock(block.id)}
+                                className="absolute top-2 right-2 z-10 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110"
+                                title="删除图片"
+                              >
+                                <span className="text-xs font-bold">×</span>
+                              </button>
+
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={block.content}
+                                alt={block.alt || '图片'}
+                                className="max-w-full h-auto block"
+                                style={{
+                                  maxHeight: '300px',
+                                  width: 'auto',
+                                  height: 'auto',
+                                  objectFit: 'contain'
+                                }}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const container = target.parentElement!;
+                                  container.innerHTML = `
+                                  <div class="p-8 text-center text-red-500 bg-red-50 min-w-[200px]">
+                                    <div class="text-2xl mb-3">⚠</div>
+                                    <div class="text-sm font-medium text-red-600">图片加载失败</div>
+                                    <div class="text-xs mt-2 text-red-400">请检查图片链接</div>
+                                  </div>
+                                `;
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 新建文本框按钮 - 悬停时显示，紧贴元素边缘 */}
+                        {(block.type === 'image' || (block.type === 'text' && block.content.trim())) && (
+                          <div className="relative">
+                            <button
+                              onClick={() => addNormalTextBlockAfter(block.id)}
+                              className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg hover:scale-110 opacity-0 group-hover:opacity-100"
+                              style={{
+                                top: block.type === 'text' ? '-6px' : '-23px' // 紧贴文本框下边框或图片容器下边缘
+                              }}
+                            >
+                              <span className="text-sm font-bold leading-none">+</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Markdown 模式编辑器 - 预渲染，通过CSS控制显示/隐藏 */}
+            <div
+              className={cn(
+                'w-full h-full absolute inset-0',
+                !isMarkdownMode ? 'invisible opacity-0 pointer-events-none' : 'visible opacity-100'
+              )}
+              style={{
+                transition: 'opacity 0ms', // 零延迟切换
+              }}
+            >
+              {/* Markdown 模式编辑器内联内容 */}
+              <div className="flex w-full h-full p-2 gap-2">
+                {/* 编辑区域 - 使用统一的flex-1确保宽度一致 */}
+                <div className={cn(
+                  'flex flex-col min-w-0', // 使用min-w-0防止内容溢出影响flex宽度计算
+                  showMarkdownPreview ? 'flex-1' : 'w-full'
+                )}>
+                  {/* 文本编辑区域容器 - 应用与普通模式相同的边框样式 */}
+                  <div
+                    className="h-full border rounded-lg bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-20 shadow-sm transition-all duration-200 relative"
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                  >
+                    <textarea
+                      ref={editorRef}
+                      value={markdownConverter.blocksToContent(markdownBlocks)}
+                      onChange={(e) => {
+                        const newBlocks = markdownConverter.contentToBlocks(e.target.value);
+                        setMarkdownBlocks(newBlocks);
+                      }}
+                      onPaste={handleImagePaste}
+                      onKeyDown={handleMarkdownKeyDown}
+                      onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
+                      onBlur={() => {
+                        // 图片已通过上传自动保存到文件系统，无需额外缓存操作
+                      }}
+                      className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg"
+                      placeholder="开始输入Markdown内容，支持粘贴图片..."
+                      spellCheck={false}
+                      style={{
+                        minHeight: 'calc(100vh - 140px)', // 恢复原来的高度设置以确保滚动同步正常工作
+                        height: 'calc(100vh - 140px)',
+                        maxHeight: 'calc(100vh - 140px)'
+                      }}
+                    />
+
+                    {/* 复制按钮 - 右下角显示，hover时显示，空内容时不显示 */}
+                    {markdownConverter.blocksToContent(markdownBlocks).trim() && isHovered && (
+                      <button
+                        onClick={handleCopyMarkdown}
+                        className="absolute bottom-2 right-2 w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center z-10"
+                        title="复制"
+                      >
+                        {/* 显示复制状态或复制图标 */}
+                        {isCopying ? '✓' : '⧉'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* 预览区域 - 使用统一的flex-1确保宽度一致 */}
+                {showMarkdownPreview && (
+                  <div className="flex-1 flex flex-col min-w-0"> {/* 使用min-w-0防止内容溢出影响flex宽度计算 */}
+                    {/* 预览区域容器 - 应用与编辑区域相同的边框样式 */}
+                    <div className="h-full border rounded-lg bg-gray-50 border-gray-200 shadow-sm">
+                      <div
+                        ref={previewRef}
+                        className="h-full overflow-auto p-3"
+                        onScroll={syncScrollFromPreview}
+                        style={{
+                          minHeight: 'calc(100vh - 140px)', // 与编辑区域保持一致的高度以确保滚动同步
+                          height: 'calc(100vh - 140px)',
+                          maxHeight: 'calc(100vh - 140px)'
+                        }}
+                      >
+                        {markdownConverter.blocksToContent(markdownBlocks).trim() ? (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                            className="prose prose-sm max-w-none prose-gray markdown-preview-content"
+                          >
+                            {markdownConverter.blocksToContent(markdownBlocks)}
+                          </ReactMarkdown>
+                        ) : (
+                          <div className="text-gray-400 text-sm">
+                            Markdown预览区域
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* 历史侧边栏 - 使用独立组件 */}
