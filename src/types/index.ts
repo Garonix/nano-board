@@ -94,13 +94,11 @@ export interface NormalModeEditorProps {
   focusedBlockId: string;
   isSingleTextBlock: boolean;
   isSavingText: boolean;
-  hoveredTextBlockId: string | null;
   onUpdateBlockContent: (blockId: string, content: string) => void;
   onDeleteBlock: (blockId: string) => void;
   onAddTextBlockAfter: (blockId: string) => void;
   onClearTextBlockContent: (blockId: string) => void;
   onSetFocusedBlockId: (blockId: string) => void;
-  onSetHoveredTextBlockId: (blockId: string | null) => void;
   onHandleImagePaste: (e: React.ClipboardEvent) => void;
   onHandleKeyDown: (e: React.KeyboardEvent, blockId: string) => void;
   onHandleSaveText: (content: string) => Promise<void>;

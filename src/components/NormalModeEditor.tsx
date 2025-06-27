@@ -5,7 +5,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { NormalModeEditorProps } from '@/types';
 import { adjustTextareaHeight } from '@/lib/textareaUtils';
@@ -15,17 +15,17 @@ export const NormalModeEditor: React.FC<NormalModeEditorProps> = ({
   focusedBlockId,
   isSingleTextBlock,
   isSavingText,
-  hoveredTextBlockId,
   onUpdateBlockContent,
   onDeleteBlock,
   onAddTextBlockAfter,
   onClearTextBlockContent,
   onSetFocusedBlockId,
-  onSetHoveredTextBlockId,
   onHandleImagePaste,
   onHandleKeyDown,
   onHandleSaveText
 }) => {
+  // 内部管理悬停状态
+  const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
   return (
     <div className="w-full h-full overflow-auto p-2">
       {/* 添加响应式左右边距，缩减文本框宽度以提升阅读体验，保持居中显示 */}
@@ -37,8 +37,8 @@ export const NormalModeEditor: React.FC<NormalModeEditorProps> = ({
               {block.type === 'text' ? (
                 <div
                   className="relative"
-                  onMouseEnter={() => onSetHoveredTextBlockId(block.id)}
-                  onMouseLeave={() => onSetHoveredTextBlockId(null)}
+                  onMouseEnter={() => setHoveredTextBlockId(block.id)}
+                  onMouseLeave={() => setHoveredTextBlockId(null)}
                 >
                   {/* 文本框操作按钮组 - 悬停时显示 */}
                   {hoveredTextBlockId === block.id && (

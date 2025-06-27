@@ -40,7 +40,9 @@ const FileItem: React.FC<{
   const isImage = file.type === 'image';
 
   return (
-    <div className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group">
+    <div
+      onClick={onInsert}
+      className="border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group">
       {/* 文件头部 */}
       <div className="flex items-start justify-between mb-2">
         <h4 className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">
@@ -85,14 +87,6 @@ const FileItem: React.FC<{
           </div>
         </div>
       )}
-
-      {/* 操作按钮 */}
-      <button
-        onClick={onInsert}
-        className="w-full px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-      >
-        插入到编辑器
-      </button>
     </div>
   );
 };
@@ -120,7 +114,7 @@ const FileList: React.FC<{
             "w-2 h-2 rounded-full mr-2",
             type === 'image' ? 'bg-blue-500' : 'bg-green-500'
           )}></span>
-          本地{typeLabel}文件 ({files.length})
+          缓存{typeLabel} ({files.length})
         </h4>
 
         {!isEmpty && (
@@ -273,8 +267,6 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
       <div className="flex-1 overflow-y-auto">
         {loadingState.isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-            <span className="text-sm text-gray-600">加载中...</span>
           </div>
         ) : loadingState.error ? (
           <div className="p-4 text-center">
