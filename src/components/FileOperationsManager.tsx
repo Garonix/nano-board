@@ -144,19 +144,25 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
 
       if (isMarkdownMode) {
         // 在Markdown模式下插入图片
-        const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+        const textarea = document.querySelector('textarea[data-markdown-editor="true"]') as HTMLTextAreaElement;
         if (textarea) {
           const start = textarea.selectionStart;
           const end = textarea.selectionEnd;
           const value = textarea.value;
 
-          const imageMarkdown = `![${altText}](${imagePath})  \n`;
-          const newValue = value.slice(0, start) + imageMarkdown + value.slice(end);
+          // 在当前光标位置创建新行并插入图片
+          // 不管光标在哪里，都先插入换行符创建新行，然后插入图片，再添加空行
+          const imageMarkdown = `\n![${altText}](${imagePath})\n`;
 
+          // 关键修改：不替换任何现有文本，即使有选中文本也保留
+          // 始终在光标起始位置插入，保留所有原有文本
+          const newValue = value.slice(0, start) + imageMarkdown + value.slice(start);
+
+          // 更新React状态
           const newBlocks = contentToBlocks(newValue);
           onSetBlocks(newBlocks);
 
-          // 设置光标位置
+          // 设置光标位置到图片语法后的换行符后，用户可以立即继续输入文本
           setTimeout(() => {
             const newCursorPos = start + imageMarkdown.length;
             textarea.setSelectionRange(newCursorPos, newCursorPos);
