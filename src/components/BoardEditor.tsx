@@ -106,12 +106,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                   normalBlocks[0].type === 'text' &&
                                   !normalBlocks.some(block => block.type === 'image');
 
-  const isSingleMarkdownTextBlock = markdownBlocks.length === 1 &&
-                                    markdownBlocks[0].type === 'text' &&
-                                    !markdownBlocks.some(block => block.type === 'image');
+  // 注意：移除了 isSingleMarkdownTextBlock，因为 Markdown 模式使用固定高度
+  // 不需要根据单/多文本框状态动态调整高度
 
-  // 当前模式下的单文本框状态
-  const currentIsSingleTextBlock = isMarkdownMode ? isSingleMarkdownTextBlock : isSingleNormalTextBlock;
+  // 注意：移除了 currentIsSingleTextBlock，改为直接使用各模式的独立状态
+  // 这样可以避免 Markdown 模式下的高度计算干扰
 
   // 内容转换 Hook - 为两种模式分别创建
   const normalConverter = useContentConverter(false);
@@ -621,10 +620,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     };
   }, [cleanupDragAndDrop, cleanupScrollSync]);
 
-  // 当文本框布局状态改变时，立即更新所有文本框高度
+  // 当普通模式文本框布局状态改变时，立即更新普通模式文本框高度
+  // 注意：只在普通模式下或者普通模式状态变化时才更新，避免影响 Markdown 模式的固定高度
   useEffect(() => {
-    updateAllTextareasHeight(currentIsSingleTextBlock);
-  }, [currentIsSingleTextBlock]); // 依赖单个文本框状态，确保即时更新
+    // 只有在普通模式下，或者普通模式的单文本框状态发生变化时才更新
+    if (!isMarkdownMode || isSingleNormalTextBlock !== (normalBlocks.length === 1 && normalBlocks[0].type === 'text' && !normalBlocks.some(block => block.type === 'image'))) {
+      updateAllTextareasHeight(isSingleNormalTextBlock);
+    }
+  }, [isMarkdownMode, isSingleNormalTextBlock, normalBlocks]); // 依赖模式和普通模式的状态
 
   if (isLoading) {
     return <LoadingSpinner message="加载中..." />;
@@ -899,6 +902,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   >
                     <textarea
                       ref={editorRef}
+                      data-markdown-editor="true"
                       value={markdownConverter.blocksToContent(markdownBlocks)}
                       onChange={(e) => {
                         const newBlocks = markdownConverter.contentToBlocks(e.target.value);
@@ -910,11 +914,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                       onBlur={() => {
                         // 图片已通过上传自动保存到文件系统，无需额外缓存操作
                       }}
-                      className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg"
+                      className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg markdown-editor-textarea"
                       placeholder="开始输入Markdown内容，支持粘贴图片..."
                       spellCheck={false}
                       style={{
-                        minHeight: 'calc(100vh - 140px)', // 恢复原来的高度设置以确保滚动同步正常工作
+                        minHeight: 'calc(100vh - 140px)', // 固定高度以确保滚动同步正常工作
                         height: 'calc(100vh - 140px)',
                         maxHeight: 'calc(100vh - 140px)'
                       }}

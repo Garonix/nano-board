@@ -42,9 +42,13 @@ export const adjustTextareaHeight = (
 /**
  * 批量更新所有文本框高度
  * @param isSingleTextBlock 是否为单个文本框场景
+ *
+ * 注意：此函数只处理普通模式的 textarea，不影响 Markdown 模式的固定高度设置
  */
 export const updateAllTextareasHeight = (isSingleTextBlock: boolean) => {
-  const textareas = document.querySelectorAll('textarea');
+  // 只选择普通模式的 textarea，排除 Markdown 编辑器的 textarea
+  // Markdown 编辑器的 textarea 有 data-markdown-editor 属性，需要保持固定高度以支持滚动同步
+  const textareas = document.querySelectorAll('textarea:not([data-markdown-editor])');
   textareas.forEach((textarea) => {
     const textareaElement = textarea as HTMLTextAreaElement;
     adjustTextareaHeight(textareaElement, textareaElement.value, isSingleTextBlock);

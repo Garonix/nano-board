@@ -240,11 +240,20 @@ html, body, #__next {
   overflow: hidden;
 }
 
-/* Markdown编辑器专用样式 - 移除冲突的样式设置，保持滚动同步功能 */
+/* Markdown编辑器专用样式 - 确保高度设置稳定，保持滚动同步功能 */
 .markdown-editor-textarea {
   /* 仅添加必要的样式，不覆盖高度设置以避免影响滚动同步 */
   box-sizing: border-box;
   line-height: 1.6;
+}
+
+/* 强制保护 Markdown 编辑器的高度设置，防止被 JavaScript 动态修改覆盖 */
+textarea[data-markdown-editor="true"] {
+  min-height: calc(100vh - 140px) !important;
+  height: calc(100vh - 140px) !important;
+  max-height: calc(100vh - 140px) !important;
+  /* 确保高度设置不被其他逻辑覆盖 */
+  box-sizing: border-box !important;
 }
 
 /* 确保Markdown模式的容器能够正确传递高度 */
