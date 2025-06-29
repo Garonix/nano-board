@@ -452,8 +452,15 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     refreshFileHistory
   );
 
-  // 滚动同步 Hook
-  const { editorRef, previewRef, syncScrollFromEditor, syncScrollFromPreview, cleanup: cleanupScrollSync } = useScrollSync();
+  // 滚动同步 Hook - 使用改进版本
+  const {
+    editorRef,
+    previewRef,
+    syncScrollFromEditor,
+    syncScrollFromPreview,
+    resetScrollSync,
+    cleanup: cleanupScrollSync
+  } = useScrollSync();
 
   // 键盘事件处理 Hook
   const { handleMarkdownKeyDown, handleKeyDown } = useKeyboardHandlers(
@@ -611,6 +618,16 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   useEffect(() => {
     localStorage.setItem('nano-board-markdown-preview', showMarkdownPreview.toString());
   }, [showMarkdownPreview]);
+
+  // 当预览模式切换时重置滚动同步状态
+  useEffect(() => {
+    if (isMarkdownMode) {
+      // 延迟重置，确保 DOM 更新完成
+      setTimeout(() => {
+        resetScrollSync();
+      }, 100);
+    }
+  }, [showMarkdownPreview, isMarkdownMode, resetScrollSync]);
 
   // 清理函数
   useEffect(() => {
@@ -907,6 +924,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                       onChange={(e) => {
                         const newBlocks = markdownConverter.contentToBlocks(e.target.value);
                         setMarkdownBlocks(newBlocks);
+
+                        // 内容变化时重置滚动同步状态，确保同步准确性
+                        // 使用 setTimeout 确保 DOM 更新完成后再重置
+                        setTimeout(() => {
+                          resetScrollSync();
+                        }, 0);
                       }}
                       onPaste={handleImagePaste}
                       onKeyDown={handleMarkdownKeyDown}
