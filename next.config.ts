@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     ACCESS_PASSWORD: process.env.ACCESS_PASSWORD || '',
   },
 
+  // Docker部署配置 - 启用standalone输出模式
+  output: 'standalone',
+
   // 其他配置选项
   serverExternalPackages: [],
 };

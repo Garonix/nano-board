@@ -1,0 +1,136 @@
+# ================================
+# Nano Board - Docker Compose 配置
+# 极简自托管网页白板应用
+# ================================
+
+version: '3.8'
+
+services:
+  # ================================
+  # 主应用服务
+  # ================================
+  nano-board:
+    # 构建配置
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # 构建参数
+      args:
+        - NODE_ENV=production
+    
+    # 镜像名称（如果使用预构建镜像）
+    # image: nano-board:latest
+    
+    # 容器名称
+    container_name: nano-board-app
+    
+    # 重启策略
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "8080:3000"
+    
+    # 环境变量配置
+    environment:
+      # 基础配置
+      - NODE_ENV=production
+      - PORT=3000
+      
+      # 密码验证功能控制
+      # 设置为 true 启用密码验证，false 或不设置则禁用
+      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH:-false}
+      
+      # 自定义访问密码（仅在启用密码验证时生效）
+      # 生产环境请务必设置强密码
+      - ACCESS_PASSWORD=${ACCESS_PASSWORD:-nano2024}
+      
+      # Next.js 配置
+      - NEXT_TELEMETRY_DISABLED=1
+    
+    # 卷挂载配置
+    volumes:
+      # 数据持久化 - 白板内容和上传的图片
+      - ./data:/app/data:rw
+      
+      # 日志持久化（可选）
+      - ./logs:/app/logs:rw
+      
+      # 配置文件挂载（可选，用于高级配置）
+      # - ./config:/app/config:ro
+    
+    # 健康检查配置
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          # 内存限制（根据实际需求调整）
+          memory: 512M
+          # CPU限制
+          cpus: '0.5'
+        reservations:
+          # 预留内存
+          memory: 256M
+          # 预留CPU
+          cpus: '0.25'
+    
+    # 网络配置
+    networks:
+      - nano-board-network
+    
+    # 依赖服务（如果有数据库等）
+    # depends_on:
+    #   - database
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================
+  # 可选：反向代理服务（Nginx）
+  # ================================
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nano-board-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - nano-board
+  #   networks:
+  #     - nano-board-network
+
+# ================================
+# 网络配置
+# ================================
+networks:
+  nano-board-network:
+    driver: bridge
+    # 自定义网络配置
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ================================
+# 卷配置（可选，用于命名卷）
+# ================================
+# volumes:
+  # 如果需要使用Docker管理的卷而不是主机目录
+  # nano-board-data:
+  #   driver: local
+  # nano-board-logs:
+  #   driver: local
