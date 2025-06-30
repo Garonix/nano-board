@@ -32,18 +32,22 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
   }
 
   return (
-    <div className={`absolute inset-0 bg-blue-50 bg-opacity-95 border-2 border-dashed border-blue-400 z-50 flex items-center justify-center transition-all duration-200 ease-in-out ${className}`}>
-      <div className="text-center transform scale-105 transition-transform duration-200">
-        {/* 动画图标 */}
-        <div className="text-6xl mb-4 animate-bounce text-blue-600">⬇</div>
-        
-        {/* 主要提示文字 */}
-        <div className="text-xl font-semibold text-blue-700 mb-2">
+    <div className={`absolute inset-0 bg-primary-50/95 border-2 border-dashed border-primary-400 z-50 flex items-center justify-center transition-all duration-300 ease-in-out animate-fade-in backdrop-blur-sm ${className}`}>
+      <div className="text-center">
+        {/* 简洁的动画图标 */}
+        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+          <svg className="w-8 h-8 text-white animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        </div>
+
+        {/* 简洁的提示文字 */}
+        <div className="text-xl font-bold text-primary-700 mb-3">
           拖拽图片到这里
         </div>
-        
+
         {/* 支持格式说明 */}
-        <div className="text-sm text-blue-600 bg-white bg-opacity-80 px-3 py-1 rounded-full">
+        <div className="text-sm text-primary-600 bg-white/90 px-4 py-2 rounded-full">
           支持 JPG、PNG、GIF、WebP 格式
         </div>
       </div>

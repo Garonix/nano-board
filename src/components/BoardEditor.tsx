@@ -173,31 +173,35 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       );
     },
 
-    // 图片组件 - 优化显示，不显示alt文本
+    // 现代化图片组件 - 优化显示，不显示alt文本
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     img(props: any) {
       const { src, alt, ...rest } = props;
       return (
         <span className="inline-block my-6 text-center w-full">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt}
-            className="max-w-full h-auto rounded-lg shadow-sm block mx-auto"
-            style={{
-              maxHeight: '300px',
-              objectFit: 'contain'
-            }}
-            {...rest}
-          />
+          <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={alt}
+              className="max-w-full h-auto block transition-transform duration-200 group-hover:scale-105"
+              style={{
+                maxHeight: '400px',
+                objectFit: 'contain'
+              }}
+              {...rest}
+            />
+            {/* 图片遮罩层 */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+          </div>
         </span>
       );
     },
 
-    // 标题组件 - 确保正确渲染
+    // 现代化标题组件 - 确保正确渲染
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     h1(props: any) {
-      return <h1 className="text-3xl font-bold text-gray-900 mb-6 mt-8 pb-2 border-b border-gray-200" {...props} />;
+      return <h1 className="text-3xl font-bold text-foreground mb-6 mt-8 pb-3 border-b-2 border-primary-200" {...props} />;
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     h2(props: any) {
@@ -684,9 +688,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             onToggleHistorySidebar={toggleHistorySidebar}
           />
 
-          {/* 简单的主编辑区域 */}
+          {/* 现代化主编辑区域 */}
           <div
-            className="flex-1 flex overflow-hidden relative bg-white"
+            className="flex-1 flex overflow-hidden relative bg-surface"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -805,10 +809,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                 // 图片已通过上传自动保存到文件系统，无需额外缓存操作
                               }}
                               className={cn(
-                                "w-full p-3 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-white textarea-no-scrollbar",
+                                "w-full p-4 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-surface-elevated textarea-no-scrollbar transition-all duration-200",
                                 focusedBlockId === block.id
-                                  ? "border-blue-500 ring-2 ring-blue-500 ring-opacity-20 shadow-sm"
-                                  : "border-gray-200 hover:border-gray-300",
+                                  ? "border-transparent ring-4 ring-primary-600/70"
+                                  : "border-border hover:border-neutral-300",
                                 isSingleNormalTextBlock
                                   ? "min-h-[25rem] max-h-[25rem]"
                                   : "min-h-[2.5rem] max-h-[10rem]"
@@ -838,45 +842,52 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                         ) : (
                           <div className="w-full text-center my-4">
                             {/* 图片容器 - 限制最大高度300px，修复删除按钮定位 */}
-                            <div className="relative inline-block bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 max-w-full group">
-                              {/* 图片删除按钮 - 精确定位在图片元素右上角 */}
+                            <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full group">
+                              {/* 现代化图片删除按钮 - 精确定位在图片元素右上角 */}
                               <button
                                 onClick={() => deleteNormalBlock(block.id)}
-                                className="absolute top-2 right-2 z-10 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-110"
+                                className="absolute top-3 right-3 z-10 w-8 h-8 bg-error-500 hover:bg-error-600 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl"
                                 title="删除图片"
                               >
-                                <span className="text-xs font-bold">×</span>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
                               </button>
 
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={block.content}
-                                alt={block.alt || '图片'}
-                                className="max-w-full h-auto block"
-                                style={{
-                                  maxHeight: '300px',
-                                  width: 'auto',
-                                  height: 'auto',
-                                  objectFit: 'contain'
-                                }}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const container = target.parentElement!;
-                                  container.innerHTML = `
-                                  <div class="p-8 text-center text-red-500 bg-red-50 min-w-[200px]">
-                                    <div class="text-2xl mb-3">⚠</div>
-                                    <div class="text-sm font-medium text-red-600">图片加载失败</div>
-                                    <div class="text-xs mt-2 text-red-400">请检查图片链接</div>
-                                  </div>
-                                `;
-                                }}
-                              />
+                              {/* 现代化图片展示 */}
+                              <div className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={block.content}
+                                  alt={block.alt || '图片'}
+                                  className="max-w-full h-auto block transition-transform duration-200 group-hover:scale-105"
+                                  style={{
+                                    maxHeight: '400px',
+                                    width: 'auto',
+                                    height: 'auto',
+                                    objectFit: 'contain'
+                                  }}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const container = target.parentElement!;
+                                    container.innerHTML = `
+                                    <div class="p-8 text-center text-red-500 bg-red-50 min-w-[200px]">
+                                      <div class="text-2xl mb-3">⚠️</div>
+                                      <div class="text-sm font-medium text-red-600">图片加载失败</div>
+                                      <div class="text-xs mt-2 text-red-400">请检查图片链接</div>
+                                    </div>
+                                    `;
+                                  }}
+                                />
+                                {/* 图片遮罩层 */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                              </div>
                             </div>
                           </div>
                         )}
 
-                        {/* 新建文本框按钮 - 悬停时显示，紧贴元素边缘 */}
+                        {/* 现代化新建文本框按钮 - 悬停时显示，紧贴元素边缘 */}
                         {(block.type === 'image' || (block.type === 'text' && block.content.trim())) && (
                           <div className="relative">
                             <button
@@ -886,7 +897,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                 top: block.type === 'text' ? '-6px' : '-23px' // 紧贴文本框下边框或图片容器下边缘
                               }}
                             >
-                              <span className="text-sm font-bold leading-none">+</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
                             </button>
                           </div>
                         )}
@@ -914,9 +927,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   'flex flex-col min-w-0', // 使用min-w-0防止内容溢出影响flex宽度计算
                   showMarkdownPreview ? 'flex-1' : 'w-full'
                 )}>
-                  {/* 文本编辑区域容器 - 应用与普通模式相同的边框样式 */}
+                  {/* 现代化文本编辑区域容器 */}
                   <div
-                    className="h-full border rounded-lg bg-white border-gray-200 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-20 shadow-sm transition-all duration-200 relative"
+                    className="h-full border border-border rounded-lg bg-surface-elevated hover:border-neutral-300 focus-within:border-primary-300 shadow-sm hover:shadow-md transition-all duration-200 relative"
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                   >
@@ -954,7 +967,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                     {markdownConverter.blocksToContent(markdownBlocks).trim() && isHovered && (
                       <button
                         onClick={handleCopyMarkdown}
-                        className="absolute bottom-2 right-2 w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center z-10"
+                        className="absolute top-2 right-2 w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center z-10"
                         title="复制"
                       >
                         {/* 显示复制状态或复制图标 */}
@@ -967,8 +980,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 {/* 预览区域 - 使用统一的flex-1确保宽度一致 */}
                 {showMarkdownPreview && (
                   <div className="flex-1 flex flex-col min-w-0"> {/* 使用min-w-0防止内容溢出影响flex宽度计算 */}
-                    {/* 预览区域容器 - 应用与编辑区域相同的边框样式 */}
-                    <div className="h-full border rounded-lg bg-gray-50 border-gray-200 shadow-sm">
+                    {/* 现代化预览区域容器 */}
+                    <div className="h-full border border-border rounded-lg bg-neutral-50 shadow-sm hover:shadow-md transition-shadow duration-200">
                       <div
                         ref={previewRef}
                         className="h-full overflow-auto p-3"

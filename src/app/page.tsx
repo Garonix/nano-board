@@ -40,14 +40,26 @@ export default function Home() {
     setIsAuthenticated(true);
   };
 
-  // 加载状态
+  // 简洁加载状态 - 只保留进度条
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <div className="text-gray-500">
-            {enablePasswordAuth ? '检查认证状态...' : '初始化应用...'}
+      <div className="min-h-screen bg-surface flex items-center justify-center animate-fade-in">
+        <div className="text-center p-8">
+          {/* 简洁的应用图标 */}
+          <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <span className="text-white font-bold text-xl">N</span>
+          </div>
+
+          {/* 简洁的状态文本 */}
+          <div className="text-lg font-medium text-foreground mb-6">
+            {enablePasswordAuth ? '验证身份中' : '启动应用中'}
+          </div>
+
+          {/* 进度指示器 */}
+          <div className="w-48 mx-auto">
+            <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full animate-pulse-modern"></div>
+            </div>
           </div>
         </div>
       </div>

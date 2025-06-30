@@ -16,11 +16,11 @@ import { useRef, useCallback, useEffect } from 'react';
  * 高性能节流函数 - 使用 requestAnimationFrame 优化
  * 专门为滚动同步设计，确保最佳性能
  */
-function rafThrottle(func: (...args: any[]) => void) {
+function rafThrottle<T extends unknown[]>(func: (...args: T) => void) {
   let rafId: number | null = null;
-  let lastArgs: any[] | null = null;
+  let lastArgs: T | null = null;
 
-  return (...args: any[]) => {
+  return (...args: T) => {
     lastArgs = args;
 
     if (rafId === null) {

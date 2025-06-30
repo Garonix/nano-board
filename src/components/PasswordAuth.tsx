@@ -59,66 +59,103 @@ export const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) =
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4 animate-fade-in">
       <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        {/* 现代化头部 */}
+        <div className="text-center animate-scale-fade-in">
+          <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+            <span className="text-white font-bold text-2xl">N</span>
+          </div>
+          <h1 className="text-4xl font-bold text-foreground mb-3 tracking-tight">
             Nano Board
           </h1>
-          <p className="text-gray-600">
+          <p className="text-neutral-600 text-lg">
             极简白板应用
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-surface-elevated rounded-2xl shadow-xl p-8 border border-border backdrop-blur-sm animate-scale-fade-in" style={{ animationDelay: '0.1s' }}>
+          {/* 现代化表单 */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                请输入访问密码
+              <label htmlFor="password" className="block text-sm font-semibold text-foreground mb-3">
+                访问密码
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className={cn(
-                  'w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                  error ? 'border-red-300' : 'border-gray-300'
-                )}
-                placeholder="输入密码..."
-                disabled={isLoading}
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className={cn(
+                    'modern-input w-full px-4 py-3 text-lg',
+                    'placeholder-neutral-400',
+                    error ? 'border-error-500 focus:border-error-500 focus:ring-error-500/20' : ''
+                  )}
+                  placeholder="请输入密码"
+                  disabled={isLoading}
+                  autoFocus
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+                  <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+              </div>
               {error && (
-                <p className="mt-2 text-sm text-red-600">
-                  {error}
-                </p>
+                <div className="mt-3 flex items-center gap-2 text-error-600 animate-scale-fade-in">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-sm font-medium">{error}</p>
+                </div>
               )}
             </div>
 
+            {/* 现代化提交按钮 */}
             <button
               type="submit"
               disabled={isLoading || !password.trim()}
               className={cn(
-                'w-full py-2 px-4 rounded-md text-white font-medium transition-colors',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+                'w-full py-4 px-6 text-lg font-semibold rounded-lg transition-all duration-200',
+                'focus:outline-none focus:ring-4 focus:ring-primary-500/20',
                 isLoading || !password.trim()
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl'
               )}
             >
-              {isLoading ? '验证中...' : '进入白板'}
+              <span className="flex items-center justify-center gap-3">
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin-modern"></div>
+                    <span>验证中...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>进入白板</span>
+                  </>
+                )}
+              </span>
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              {correctPassword === DEFAULT_PASSWORD
-                ? '提示：默认密码为 nano2024'
-                : '请输入管理员设置的访问密码'
-              }
-            </p>
+          {/* 现代化底部提示 */}
+          <div className="mt-8 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 rounded-full">
+              <svg className="w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-neutral-600">
+                {correctPassword === DEFAULT_PASSWORD
+                  ? '默认密码：nano2024'
+                  : '请联系管理员获取访问密码'
+                }
+              </p>
+            </div>
           </div>
         </div>
       </div>

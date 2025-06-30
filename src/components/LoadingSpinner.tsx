@@ -29,41 +29,28 @@ export interface LoadingSpinnerProps {
 export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   message = '加载中...',
   className = '',
-  fullScreen = true,
-  size = 'medium'
+  fullScreen = true
+  // size 参数已移除，因为简化后的设计不再需要不同尺寸
 }) => {
-  // 根据大小设置动画尺寸
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'small':
-        return 'w-4 h-4 border-2';
-      case 'large':
-        return 'w-12 h-12 border-4';
-      case 'medium':
-      default:
-        return 'w-8 h-8 border-4';
-    }
-  };
+  // 注释：getSizeClasses 函数已移除，因为简化后的设计不再需要不同尺寸
 
   // 根据是否全屏设置容器样式
   const containerClasses = fullScreen
-    ? 'min-h-screen bg-gray-50 flex items-center justify-center'
-    : 'flex items-center justify-center p-4';
+    ? 'min-h-screen bg-surface flex items-center justify-center animate-fade-in'
+    : 'flex items-center justify-center p-6 animate-fade-in';
 
   return (
     <div className={`${containerClasses} ${className}`}>
-      <div className="text-center">
-        {/* 旋转加载动画 */}
-        <div 
-          className={`${getSizeClasses()} border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4`}
-          role="status"
-          aria-label="加载中"
-        />
-        
-        {/* 加载提示文字 */}
-        <p className="text-gray-600 text-sm md:text-base">
+      <div className="text-center animate-scale-fade-in">
+        {/* 简洁的加载提示文字 */}
+        <p className="text-lg font-medium text-foreground mb-4">
           {message}
         </p>
+
+        {/* 进度条指示器 */}
+        <div className="w-32 h-2 bg-neutral-200 rounded-full mx-auto overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full animate-pulse-modern"></div>
+        </div>
       </div>
     </div>
   );

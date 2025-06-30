@@ -58,9 +58,9 @@ export interface FileOperations {
  */
 export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
   isMarkdownMode,
-  blocks,
+  // blocks, // 暂时未使用
   contentToBlocks,
-  blocksToContent,
+  // blocksToContent, // 暂时未使用
   onSetBlocks,
   onInsertTextContent,
   onCloseHistorySidebar,
