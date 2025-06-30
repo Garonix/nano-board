@@ -37,11 +37,24 @@ import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
 import { HistorySidebar } from './HistorySidebar';
 import { TopNavbar } from './TopNavbar';
 import { FileOperationsManager } from './FileOperationsManager';
+import { ConfirmDialog } from './Modal';
 
 import { DragDropOverlay } from './DragDropOverlay';
 import { LoadingSpinner } from './LoadingSpinner';
 
+// 对话框Hook
+import { useDialog } from '@/hooks/useDialog';
+
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
+  // 对话框状态管理
+  const {
+    isConfirmOpen,
+    confirmOptions,
+    confirm,
+    closeConfirm,
+    handleConfirm,
+  } = useDialog();
+
   // 使用优化后的状态管理 Hook
   const {
     editorState,
@@ -562,7 +575,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   // 清空所有内容函数
   const clearAllNormalContent = useCallback(async () => {
-    if (window.confirm('确定要清空普通模式的所有内容吗？此操作无法撤销。')) {
+    const confirmed = await confirm({
+      title: '确认清空',
+      message: '确定要清空普通模式的所有内容吗？此操作无法撤销。',
+      confirmText: '清空',
+      confirmType: 'danger'
+    });
+
+    if (confirmed) {
       setNormalBlocks([{ id: Date.now().toString(), type: 'text', content: '' }]);
       try {
         await fetch('/api/board', {
@@ -574,10 +594,17 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         console.error('清空普通模式数据失败:', error);
       }
     }
-  }, []);
+  }, [confirm]);
 
   const clearAllMarkdownContent = useCallback(async () => {
-    if (window.confirm('确定要清空Markdown模式的所有内容吗？此操作无法撤销。')) {
+    const confirmed = await confirm({
+      title: '确认清空',
+      message: '确定要清空Markdown模式的所有内容吗？此操作无法撤销。',
+      confirmText: '清空',
+      confirmType: 'danger'
+    });
+
+    if (confirmed) {
       setMarkdownBlocks([{ id: Date.now().toString(), type: 'text', content: '' }]);
       try {
         await fetch('/api/board', {
@@ -589,9 +616,19 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         console.error('清空Markdown模式数据失败:', error);
       }
     }
-  }, []);
+  }, [confirm]);
 
   const clearAllCurrentContent = isMarkdownMode ? clearAllMarkdownContent : clearAllNormalContent;
+
+  // 创建确认函数供HistorySidebar使用
+  const handleConfirmDialog = useCallback(async (message: string): Promise<boolean> => {
+    return await confirm({
+      title: '确认操作',
+      message,
+      confirmText: '确认',
+      confirmType: 'danger'
+    });
+  }, [confirm]);
 
   // 初始化 - 加载设置并预加载两种模式的数据
   useEffect(() => {
@@ -812,7 +849,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                 "w-full p-4 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-surface-elevated textarea-no-scrollbar transition-all duration-200",
                                 focusedBlockId === block.id
                                   ? "border-transparent ring-4 ring-primary-600/70"
-                                  : "border-border hover:border-neutral-300",
+                                  : "border-border hover:border-transparent hover:ring-4 hover:ring-gray-400/50",
                                 isSingleNormalTextBlock
                                   ? "min-h-[25rem] max-h-[25rem]"
                                   : "min-h-[2.5rem] max-h-[10rem]"
@@ -921,7 +958,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               }}
             >
               {/* Markdown 模式编辑器内联内容 */}
-              <div className="flex w-full h-full p-2 gap-2">
+              <div className="flex w-full h-full px-4 py-2 gap-2">
                 {/* 编辑区域 - 使用统一的flex-1确保宽度一致 */}
                 <div className={cn(
                   'flex flex-col min-w-0', // 使用min-w-0防止内容溢出影响flex宽度计算
@@ -929,7 +966,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 )}>
                   {/* 现代化文本编辑区域容器 */}
                   <div
-                    className="h-full border border-border rounded-lg bg-surface-elevated hover:border-neutral-300 focus-within:border-primary-300 shadow-sm hover:shadow-md transition-all duration-200 relative"
+                    className="h-full border border-border rounded-lg bg-surface-elevated hover:border-transparent hover:ring-4 hover:ring-gray-400/50 focus-within:border-transparent focus-within:ring-4 focus-within:ring-primary-600/70 shadow-sm hover:shadow-md transition-all duration-200 relative"
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                   >
@@ -1033,6 +1070,19 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             onTextInsert={fileOperations.handleRestoreLocalTextFile}
             onFileDelete={fileOperations.handleDeleteLocalFile}
             onClearAll={fileOperations.handleClearAllLocalFiles}
+            onConfirm={handleConfirmDialog}
+          />
+
+          {/* 确认对话框 */}
+          <ConfirmDialog
+            isOpen={isConfirmOpen}
+            onClose={closeConfirm}
+            onConfirm={handleConfirm}
+            title={confirmOptions?.title}
+            message={confirmOptions?.message || ''}
+            confirmText={confirmOptions?.confirmText}
+            cancelText={confirmOptions?.cancelText}
+            confirmType={confirmOptions?.confirmType}
           />
         </div>
       )}
