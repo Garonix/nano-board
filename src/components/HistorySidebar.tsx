@@ -259,10 +259,10 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-end p-4 animate-fade-in">
       <div
         ref={sidebarRef}
-        className="w-full sm:w-96 md:w-96 lg:w-96 max-h-[calc(100vh-2rem)] bg-surface-elevated shadow-lg rounded-lg flex flex-col animate-slide-in-right border border-border mobile-sidebar tablet-sidebar"
+        className="w-full sm:w-96 md:w-96 lg:w-96 max-h-[calc(100vh-2rem)] bg-surface-elevated shadow-lg rounded-lg flex flex-col animate-slide-in-right border border-border mobile-sidebar tablet-sidebar overflow-hidden"
       >
       {/* 现代化头部 */}
-      <div className="flex flex-col border-b border-border bg-surface">
+      <div className="flex flex-col border-b border-border bg-surface rounded-t-lg">
         {/* 现代化标题栏 */}
         <div className="flex items-center justify-between p-6">
           <div className="flex items-center gap-3">

@@ -727,7 +727,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
           {/* 现代化主编辑区域 */}
           <div
-            className="flex-1 flex overflow-hidden relative bg-surface"
+            className="flex-1 flex overflow-hidden relative bg-white"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
