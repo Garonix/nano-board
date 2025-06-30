@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* CSS变量定义 - 主题颜色配置 */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,6 +13,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* 深色模式支持 */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,6 +21,7 @@
   }
 }
 
+/* 基础页面样式 - 全屏白板布局 */
 body {
   background: var(--background);
   color: var(--foreground);
@@ -28,80 +31,22 @@ body {
   overflow: hidden; /* 防止页面滚动，实现真正的全屏体验 */
 }
 
-/* 全屏白板样式优化 */
 html, body, #__next {
   height: 100%;
   overflow: hidden;
 }
 
-/* 普通模式下的文本编辑器样式优化 */
-.plain-editor-overlay {
-  /* 确保光标可见 */
-  caret-color: #374151;
-  /* 确保层级正确 */
-  position: relative;
-  z-index: 30;
-  /* 隐藏textarea自身的滚动条，使用底层容器的滚动条 */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-/* 隐藏textarea的滚动条 */
-.plain-editor-overlay::-webkit-scrollbar {
-  display: none;
-}
-
-.plain-editor-overlay::-webkit-scrollbar {
-  width: 8px;
-}
-
-.plain-editor-overlay::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.plain-editor-overlay::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 4px;
-}
-
-.plain-editor-overlay::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.7);
-}
-
-.plain-editor-overlay::selection {
-  background-color: rgba(59, 130, 246, 0.3);
-}
-
-/* 文本框隐藏滚动条但保持滚动功能 */
+/* 文本框滚动条隐藏样式 - 用于textarea元素 */
 .textarea-no-scrollbar {
-  /* 隐藏滚动条但保持滚动功能 */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
 
-/* 隐藏 WebKit 浏览器的滚动条 */
 .textarea-no-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
 
-/* 图片加载动画优化 */
-.image-loading {
-  background: linear-gradient(90deg, #f8fafc 25%, #f1f5f9 50%, #f8fafc 75%);
-  background-size: 200% 100%;
-  animation: loading 1.5s infinite;
-  border-radius: 8px;
-}
-
-@keyframes loading {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* 优化滚动条样式 */
+/* 通用滚动条样式 - 用于overflow-auto元素 */
 .overflow-auto::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -121,94 +66,6 @@ html, body, #__next {
   background-color: #94a3b8;
 }
 
-/* 图片容器优化 */
-.image-container {
-  transition: all 0.3s ease;
-}
-
-.image-container:hover {
-  transform: scale(1.02);
-}
-
-/* 模式切换优化 - 确保界面完全独立 */
-.mode-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: white;
-  z-index: 20;
-  /* 创建新的层叠上下文，防止事件穿透 */
-  isolation: isolate;
-}
-
-.mode-container.normal-mode {
-  z-index: 20;
-}
-
-.mode-container.markdown-mode {
-  z-index: 20;
-}
-
-/* 防止内容透过显示 */
-.editor-background {
-  background-color: white !important;
-  opacity: 1 !important;
-}
-
-/* 普通模式渲染容器优化 */
-.normal-mode-render-container {
-  /* 确保滚动事件不穿透 */
-  pointer-events: auto;
-  /* 优化滚动条样式 */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-  /* 确保内容正常流式布局 */
-  display: block;
-  position: relative;
-}
-
-/* 修复图片显示布局问题 */
-.normal-mode-render-container img {
-  /* 确保图片作为正常的块级元素显示 */
-  display: block !important;
-  position: static !important;
-  /* 移除可能导致悬浮的样式 */
-  float: none !important;
-  clear: both !important;
-  /* 确保图片在文档流中正常占位 */
-  margin: 0 auto;
-  max-width: 100%;
-  height: auto;
-}
-
-/* 图片容器布局修复 */
-.normal-mode-render-container .block {
-  /* 确保容器正常占据文档流 */
-  display: block !important;
-  position: static !important;
-  width: 100%;
-  clear: both;
-}
-
-.normal-mode-render-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.normal-mode-render-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.normal-mode-render-container::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 4px;
-}
-
-.normal-mode-render-container::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.7);
-}
-
 /* 历史记录侧边栏动画 */
 @keyframes slide-in-right {
   from {
@@ -225,10 +82,11 @@ html, body, #__next {
   animation: slide-in-right 0.3s ease-out;
 }
 
-/* 文本截断样式 */
+/* 文本截断样式 - 支持多行文本省略 */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2; /* 标准属性 */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -236,77 +94,35 @@ html, body, #__next {
 .line-clamp-3 {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3; /* 标准属性 */
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 /* Markdown编辑器专用样式 - 确保高度设置稳定，保持滚动同步功能 */
 .markdown-editor-textarea {
-  /* 仅添加必要的样式，不覆盖高度设置以避免影响滚动同步 */
   box-sizing: border-box;
   line-height: 1.6;
 }
 
-/* 强制保护 Markdown 编辑器的高度设置，防止被 JavaScript 动态修改覆盖 */
+/* 强制保护Markdown编辑器的高度设置，防止被JavaScript动态修改覆盖 */
 textarea[data-markdown-editor="true"] {
   min-height: calc(100vh - 140px) !important;
   height: calc(100vh - 140px) !important;
   max-height: calc(100vh - 140px) !important;
-  /* 确保高度设置不被其他逻辑覆盖 */
   box-sizing: border-box !important;
 }
 
-/* 确保Markdown模式的容器能够正确传递高度 */
-.markdown-editor-container {
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
-  min-height: 0 !important; /* 允许flex子项收缩 */
-}
-
-/* 修复Markdown分栏布局宽度一致性 */
-.markdown-split-layout {
-  /* 确保flex容器正确处理内容溢出 */
-  min-width: 0;
-  overflow: hidden;
-}
-
-/* 确保ReactMarkdown内容不会影响父容器宽度 */
-.markdown-preview-content {
-  /* 防止长单词或代码块撑开容器 */
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-  /* 确保表格等宽内容不会溢出 */
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/* 修复代码块可能导致的宽度问题 */
-.markdown-preview-content pre {
-  max-width: 100% !important;
-  overflow-x: auto !important;
-  white-space: pre-wrap !important;
-  word-wrap: break-word !important;
-}
-
-/* 修复表格可能导致的宽度问题 */
-.markdown-preview-content table {
-  max-width: 100% !important;
-  table-layout: fixed !important;
-  word-wrap: break-word !important;
-}
-
-/* 响应式优化 */
+/* 响应式优化 - 移动端适配 */
 @media (max-width: 768px) {
-  .plain-editor-overlay,
-  textarea {
-    padding: 1rem !important;
-  }
-
   /* 移动端Markdown编辑器优化 */
   .markdown-editor-textarea {
     padding: 1rem !important;
     font-size: 14px !important;
+  }
+
+  /* 移动端textarea通用样式 */
+  textarea {
+    padding: 1rem !important;
   }
 }
