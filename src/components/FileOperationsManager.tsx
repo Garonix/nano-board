@@ -147,7 +147,6 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
         const textarea = document.querySelector('textarea[data-markdown-editor="true"]') as HTMLTextAreaElement;
         if (textarea) {
           const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
           const value = textarea.value;
 
           // 在当前光标位置创建新行并插入图片

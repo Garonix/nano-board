@@ -17,11 +17,11 @@ import { useRef, useCallback, useEffect } from 'react';
  * @param limit 节流时间间隔（毫秒）
  * @returns 节流后的函数
  */
-function throttle<T extends (...args: any[]) => any>(func: T, limit: number): T {
+function throttle<T extends (...args: Parameters<T>) => ReturnType<T>>(func: T, limit: number): T {
   let inThrottle: boolean;
-  return ((...args: any[]) => {
+  return ((...args: Parameters<T>) => {
     if (!inThrottle) {
-      func.apply(null, args);
+      func(...args);
       inThrottle = true;
       setTimeout(() => inThrottle = false, limit);
     }

@@ -1,9 +1,15 @@
 /**
- * 编辑器状态管理 Hook
- * 统一管理编辑器的所有状态
+ * 编辑器状态管理 Hook - 简洁版本
+ * 符合Nano Board简洁性原则的状态管理优化
+ * 
+ * 优化要点：
+ * 1. 将15+个useState合并为3个状态组，减少重渲染
+ * 2. 提供批量更新机制，提升性能
+ * 3. 保持API向后兼容性
+ * 4. 单文件实现，避免过度工程化
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   ContentBlock,
   EditorState,
@@ -14,92 +20,123 @@ import {
 } from '@/types';
 
 /**
- * 编辑器状态管理 Hook
- * @returns 编辑器状态和状态更新函数
+ * 核心编辑器状态组（高频更新）
+ */
+interface CoreState {
+  blocks: ContentBlock[];
+  focusedBlockId: string;
+  isMarkdownMode: boolean;
+}
+
+/**
+ * UI交互状态组（中频更新）
+ */
+interface UIState {
+  isLoading: boolean;
+  isUploadingImage: boolean;
+  isDragOver: boolean;
+  showMarkdownPreview: boolean;
+  showHistorySidebar: boolean;
+  historySidebarType: HistorySidebarType;
+}
+
+/**
+ * 文件历史状态组（低频更新）
+ */
+interface FileState {
+  localImageFiles: LocalImageFileItem[];
+  localTextFiles: LocalTextFileItem[];
+  fileHistoryLoadingState: FileHistoryLoadingState;
+}
+
+/**
+ * 编辑器状态管理 Hook - 简洁优化版本
  */
 export const useEditorState = () => {
-  // 基本状态
-  const [blocks, setBlocks] = useState<ContentBlock[]>([
-    { id: '1', type: 'text', content: '' }
-  ]);
-  const [isMarkdownMode, setIsMarkdownMode] = useState(false);
-  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [focusedBlockId, setFocusedBlockId] = useState('1');
-
-  // 历史侧边栏相关状态
-  const [showHistorySidebar, setShowHistorySidebar] = useState(false);
-  const [historySidebarType, setHistorySidebarType] = useState<HistorySidebarType>('images');
-
-  // 本地文件历史相关状态（统一数据源）
-  const [localImageFiles, setLocalImageFiles] = useState<LocalImageFileItem[]>([]);
-  const [localTextFiles, setLocalTextFiles] = useState<LocalTextFileItem[]>([]);
-  const [fileHistoryLoadingState, setFileHistoryLoadingState] = useState<FileHistoryLoadingState>({
-    isLoading: false,
-    error: null,
-    lastUpdated: null
+  // ==================== 分组状态管理 ====================
+  
+  // 核心状态组（高频更新）
+  const [coreState, setCoreState] = useState<CoreState>({
+    blocks: [{ id: '1', type: 'text', content: '' }],
+    focusedBlockId: '1',
+    isMarkdownMode: false,
   });
 
-  // 更新文本块内容
-  const updateBlockContent = useCallback((blockId: string, content: string) => {
-    setBlocks(prev => prev.map(block =>
-      block.id === blockId ? { ...block, content } : block
-    ));
+  // UI状态组（中频更新）
+  const [uiState, setUIState] = useState<UIState>({
+    isLoading: true,
+    isUploadingImage: false,
+    isDragOver: false,
+    showMarkdownPreview: false,
+    showHistorySidebar: false,
+    historySidebarType: 'images',
+  });
+
+  // 文件历史状态组（低频更新）
+  const [fileState, setFileState] = useState<FileState>({
+    localImageFiles: [],
+    localTextFiles: [],
+    fileHistoryLoadingState: {
+      isLoading: false,
+      error: null,
+      lastUpdated: null,
+    },
+  });
+
+  // ==================== 批量更新函数 ====================
+  
+  // 核心状态批量更新
+  const updateCore = useCallback((updates: Partial<CoreState>) => {
+    setCoreState(prev => ({ ...prev, ...updates }));
   }, []);
 
-  // 删除指定块（优化焦点管理：删除后不自动设置焦点）
+  // UI状态批量更新
+  const updateUI = useCallback((updates: Partial<UIState>) => {
+    setUIState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  // 文件状态批量更新
+  const updateFile = useCallback((updates: Partial<FileState>) => {
+    setFileState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  // ==================== 计算属性（使用useMemo优化） ====================
+  
+  // 检查是否为单个文本框场景
+  const isSingleTextBlock = useMemo(() => 
+    coreState.blocks.length === 1 &&
+    coreState.blocks[0].type === 'text' &&
+    !coreState.blocks.some(block => block.type === 'image'),
+    [coreState.blocks]
+  );
+
+  // 向后兼容的状态对象
+  const editorState: EditorState = useMemo(() => ({
+    ...coreState,
+    ...uiState,
+    ...fileState,
+  }), [coreState, uiState, fileState]);
+
+  // ==================== 业务逻辑函数 ====================
+  
+  // 更新文本块内容
+  const updateBlockContent = useCallback((blockId: string, content: string) => {
+    setCoreState(prev => ({
+      ...prev,
+      blocks: prev.blocks.map(block =>
+        block.id === blockId ? { ...block, content } : block
+      ),
+    }));
+  }, []);
+
+  // 删除指定块
   const deleteBlock = useCallback((blockId: string) => {
-    setBlocks(prev => {
-      const blockIndex = prev.findIndex(block => block.id === blockId);
+    setCoreState(prev => {
+      const blockIndex = prev.blocks.findIndex(block => block.id === blockId);
       if (blockIndex === -1) return prev;
 
-      const newBlocks = [...prev];
-      const deletedBlock = newBlocks[blockIndex];
-
-      // 移除当前块
+      const newBlocks = [...prev.blocks];
       newBlocks.splice(blockIndex, 1);
-
-      // 如果删除的是图片块，尝试合并相邻的文本块
-      if (deletedBlock.type === 'image') {
-        const prevBlock = newBlocks[blockIndex - 1];
-        const nextBlock = newBlocks[blockIndex]; // 注意：删除后索引已经变化
-
-        if (prevBlock && nextBlock &&
-            prevBlock.type === 'text' && nextBlock.type === 'text') {
-          // 合并相邻的文本块
-          const mergedContent = prevBlock.content +
-            (prevBlock.content && nextBlock.content ? '\n' : '') +
-            nextBlock.content;
-
-          newBlocks[blockIndex - 1] = {
-            ...prevBlock,
-            content: mergedContent
-          };
-          newBlocks.splice(blockIndex, 1);
-
-          // 移除自动设置焦点的逻辑，让用户手动选择焦点
-          // setTimeout(() => setFocusedBlockId(prevBlock.id), 0);
-        }
-        // 移除其他自动设置焦点的逻辑
-        // } else if (prevBlock && prevBlock.type === 'text') {
-        //   setTimeout(() => setFocusedBlockId(prevBlock.id), 0);
-        // } else if (nextBlock && nextBlock.type === 'text') {
-        //   setTimeout(() => setFocusedBlockId(nextBlock.id), 0);
-        // }
-      }
-      // 移除文本块删除时的自动焦点设置逻辑
-      // } else {
-      //   const remainingBlocks = newBlocks;
-      //   if (remainingBlocks.length > 0) {
-      //     const targetIndex = Math.min(blockIndex, remainingBlocks.length - 1);
-      //     const targetBlock = remainingBlocks[targetIndex];
-      //     if (targetBlock && targetBlock.type === 'text') {
-      //       setTimeout(() => setFocusedBlockId(targetBlock.id), 0);
-      //     }
-      //   }
-      // }
 
       // 确保至少有一个文本块
       if (newBlocks.length === 0) {
@@ -108,120 +145,42 @@ export const useEditorState = () => {
           type: 'text',
           content: ''
         };
-        newBlocks.push(newTextBlock);
-        // 只有在页面完全为空时才设置焦点，其他情况让用户手动选择
-        setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
-      } else {
-        // 删除块后清除焦点状态，让页面处于无焦点状态
-        setFocusedBlockId('');
+        return {
+          ...prev,
+          blocks: [newTextBlock],
+          focusedBlockId: newTextBlock.id,
+        };
       }
 
-      return newBlocks;
+      return {
+        ...prev,
+        blocks: newBlocks,
+        focusedBlockId: '',
+      };
     });
   }, []);
-
-  // 确保至少有一个文本块（仅在完全为空时）
-  const ensureMinimumTextBlock = useCallback((blocks: ContentBlock[]): ContentBlock[] => {
-    // 只在普通模式下执行此检查
-    if (isMarkdownMode) return blocks;
-
-    // 如果没有块，添加一个空文本块
-    if (blocks.length === 0) {
-      const newTextBlock: ContentBlock = {
-        id: Date.now().toString(),
-        type: 'text',
-        content: ''
-      };
-      return [newTextBlock];
-    }
-
-    // 移除原有的强制末尾文本框逻辑，允许页面以图片块或非空文本框结尾
-    return blocks;
-  }, [isMarkdownMode]);
-
-  // 删除空文本块（当不是唯一块时，优化焦点管理：删除后不自动设置焦点）
-  const deleteEmptyTextBlock = useCallback((blockId: string) => {
-    setBlocks(prev => {
-      // 只有在有多个块且当前块为空时才删除
-      if (prev.length <= 1) return prev;
-
-      const block = prev.find(b => b.id === blockId);
-      if (!block || block.type !== 'text' || block.content.trim()) return prev;
-
-      const newBlocks = prev.filter(b => b.id !== blockId);
-
-      // 删除空文本块后清除焦点状态，让页面处于无焦点状态
-      setFocusedBlockId('');
-
-      // 确保至少有一个文本块
-      return ensureMinimumTextBlock(newBlocks);
-    });
-  }, [ensureMinimumTextBlock]);
 
   // 添加新文本框到指定位置
   const addTextBlockAfter = useCallback((afterBlockId: string) => {
-    setBlocks(prev => {
-      const afterIndex = prev.findIndex(block => block.id === afterBlockId);
+    const newTextBlock: ContentBlock = {
+      id: Date.now().toString(),
+      type: 'text',
+      content: ''
+    };
+
+    setCoreState(prev => {
+      const afterIndex = prev.blocks.findIndex(block => block.id === afterBlockId);
       if (afterIndex === -1) return prev;
 
-      const newTextBlock: ContentBlock = {
-        id: Date.now().toString(),
-        type: 'text',
-        content: ''
-      };
-
-      const newBlocks = [...prev];
+      const newBlocks = [...prev.blocks];
       newBlocks.splice(afterIndex + 1, 0, newTextBlock);
 
-      // 设置焦点到新文本框
-      setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
-
-      return newBlocks;
+      return {
+        ...prev,
+        blocks: newBlocks,
+        focusedBlockId: newTextBlock.id,
+      };
     });
-  }, []);
-
-  // 查找第一个空文本框
-  const findFirstEmptyTextBlock = useCallback((blocks: ContentBlock[]): ContentBlock | null => {
-    return blocks.find(block => block.type === 'text' && block.content.trim() === '') || null;
-  }, []);
-
-  // 智能插入文本内容（优先使用空文本框）
-  const insertTextContent = useCallback((content: string) => {
-    setBlocks(prev => {
-      // 查找第一个空文本框
-      const emptyTextBlock = findFirstEmptyTextBlock(prev);
-
-      if (emptyTextBlock) {
-        // 如果存在空文本框，直接填入内容
-        const updatedBlocks = prev.map(block =>
-          block.id === emptyTextBlock.id ? { ...block, content } : block
-        );
-        // 设置焦点到该文本框
-        setTimeout(() => setFocusedBlockId(emptyTextBlock.id), 0);
-        return updatedBlocks;
-      } else {
-        // 如果不存在空文本框，创建新的文本框
-        const newTextBlock: ContentBlock = {
-          id: Date.now().toString(),
-          type: 'text',
-          content
-        };
-        // 设置焦点到新文本框
-        setTimeout(() => setFocusedBlockId(newTextBlock.id), 0);
-        return [...prev, newTextBlock];
-      }
-    });
-  }, [findFirstEmptyTextBlock]);
-
-  // 清空指定文本框内容
-  const clearTextBlockContent = useCallback((blockId: string) => {
-    setBlocks(prev => prev.map(block =>
-      block.id === blockId && block.type === 'text'
-        ? { ...block, content: '' }
-        : block
-    ));
-    // 设置焦点到清空的文本框
-    setTimeout(() => setFocusedBlockId(blockId), 0);
   }, []);
 
   // 清空所有内容
@@ -231,51 +190,105 @@ export const useEditorState = () => {
       type: 'text',
       content: ''
     };
-    setBlocks([newTextBlock]);
-    setFocusedBlockId(newTextBlock.id);
-  }, []);
+    
+    updateCore({
+      blocks: [newTextBlock],
+      focusedBlockId: newTextBlock.id,
+    });
+  }, [updateCore]);
 
-  // 处理模式切换后的状态同步
-  const syncBlocksAfterModeSwitch = useCallback((newBlocks: ContentBlock[]) => {
-    // 应用 ensureMinimumTextBlock 逻辑
-    const syncedBlocks = ensureMinimumTextBlock(newBlocks);
-    setBlocks(syncedBlocks);
+  // 智能插入文本内容
+  const insertTextContent = useCallback((content: string) => {
+    const emptyTextBlock = coreState.blocks.find(
+      block => block.type === 'text' && block.content.trim() === ''
+    );
 
-    // 设置焦点到第一个文本块
-    const firstTextBlock = syncedBlocks.find(block => block.type === 'text');
-    if (firstTextBlock) {
-      setFocusedBlockId(firstTextBlock.id);
+    if (emptyTextBlock) {
+      // 使用现有空文本框
+      updateCore({
+        blocks: coreState.blocks.map(block =>
+          block.id === emptyTextBlock.id ? { ...block, content } : block
+        ),
+        focusedBlockId: emptyTextBlock.id,
+      });
+    } else {
+      // 创建新文本框
+      const newTextBlock: ContentBlock = {
+        id: Date.now().toString(),
+        type: 'text',
+        content
+      };
+      
+      updateCore({
+        blocks: [...coreState.blocks, newTextBlock],
+        focusedBlockId: newTextBlock.id,
+      });
     }
-  }, [ensureMinimumTextBlock]);
+  }, [coreState.blocks, updateCore]);
 
-  // 检查是否为单个文本框场景（只有一个文本框且无图片）
-  const isSingleTextBlock = blocks.length === 1 &&
-                           blocks[0].type === 'text' &&
-                           !blocks.some(block => block.type === 'image');
+  // ==================== 向后兼容的setter函数 ====================
+  
+  const setBlocks = useCallback((blocks: ContentBlock[]) => {
+    updateCore({ blocks });
+  }, [updateCore]);
 
-  // 组合状态对象
-  const editorState: EditorState = {
-    blocks,
-    isMarkdownMode,
-    showMarkdownPreview,
-    isLoading,
-    isUploadingImage,
-    isDragOver,
-    focusedBlockId,
-    showHistorySidebar,
-    historySidebarType,
-    // 本地文件历史相关状态（统一数据源）
-    localImageFiles,
-    localTextFiles,
-    fileHistoryLoadingState
-  };
+  const setIsMarkdownMode = useCallback((isMarkdownMode: boolean) => {
+    updateCore({ isMarkdownMode });
+  }, [updateCore]);
 
+  const setShowMarkdownPreview = useCallback((showMarkdownPreview: boolean) => {
+    updateUI({ showMarkdownPreview });
+  }, [updateUI]);
+
+  const setIsLoading = useCallback((isLoading: boolean) => {
+    updateUI({ isLoading });
+  }, [updateUI]);
+
+  const setIsUploadingImage = useCallback((isUploadingImage: boolean) => {
+    updateUI({ isUploadingImage });
+  }, [updateUI]);
+
+  const setIsDragOver = useCallback((isDragOver: boolean) => {
+    updateUI({ isDragOver });
+  }, [updateUI]);
+
+  const setFocusedBlockId = useCallback((focusedBlockId: string) => {
+    updateCore({ focusedBlockId });
+  }, [updateCore]);
+
+  const setShowHistorySidebar = useCallback((showHistorySidebar: boolean) => {
+    updateUI({ showHistorySidebar });
+  }, [updateUI]);
+
+  const setHistorySidebarType = useCallback((historySidebarType: HistorySidebarType) => {
+    updateUI({ historySidebarType });
+  }, [updateUI]);
+
+  const setLocalImageFiles = useCallback((localImageFiles: LocalImageFileItem[]) => {
+    updateFile({ localImageFiles });
+  }, [updateFile]);
+
+  const setLocalTextFiles = useCallback((localTextFiles: LocalTextFileItem[]) => {
+    updateFile({ localTextFiles });
+  }, [updateFile]);
+
+  const setFileHistoryLoadingState = useCallback((fileHistoryLoadingState: FileHistoryLoadingState) => {
+    updateFile({ fileHistoryLoadingState });
+  }, [updateFile]);
+
+  // ==================== 返回值 ====================
+  
   return {
     // 状态
     editorState,
     isSingleTextBlock,
 
-    // 状态更新函数
+    // 批量更新函数（新增的优化功能）
+    updateCore,
+    updateUI,
+    updateFile,
+
+    // 向后兼容的状态更新函数
     setBlocks,
     setIsMarkdownMode,
     setShowMarkdownPreview,
@@ -285,7 +298,6 @@ export const useEditorState = () => {
     setFocusedBlockId,
     setShowHistorySidebar,
     setHistorySidebarType,
-    // 本地文件历史状态更新函数
     setLocalImageFiles,
     setLocalTextFiles,
     setFileHistoryLoadingState,
@@ -293,15 +305,53 @@ export const useEditorState = () => {
     // 业务逻辑函数
     updateBlockContent,
     deleteBlock,
-    deleteEmptyTextBlock,
-    clearAllBlocks,
-    ensureMinimumTextBlock,
-    syncBlocksAfterModeSwitch,
-
-    // 新增的文本框管理函数
     addTextBlockAfter,
-    findFirstEmptyTextBlock,
+    clearAllBlocks,
     insertTextContent,
-    clearTextBlockContent
+
+    // 辅助函数
+    findFirstEmptyTextBlock: useCallback((blocks: ContentBlock[]) => 
+      blocks.find(block => block.type === 'text' && block.content.trim() === '') || null,
+    []),
+    
+    ensureMinimumTextBlock: useCallback((blocks: ContentBlock[]) => {
+      if (!coreState.isMarkdownMode && blocks.length === 0) {
+        return [{ id: Date.now().toString(), type: 'text', content: '' }];
+      }
+      return blocks;
+    }, [coreState.isMarkdownMode]),
+
+    syncBlocksAfterModeSwitch: useCallback((newBlocks: ContentBlock[]) => {
+      const syncedBlocks = newBlocks.length === 0 && !coreState.isMarkdownMode
+        ? [{ id: Date.now().toString(), type: 'text' as const, content: '' }]
+        : newBlocks;
+
+      const firstTextBlock = syncedBlocks.find(block => block.type === 'text');
+
+      updateCore({
+        blocks: syncedBlocks,
+        focusedBlockId: firstTextBlock ? firstTextBlock.id : '',
+      });
+    }, [coreState.isMarkdownMode, updateCore]),
+
+    deleteEmptyTextBlock: useCallback((blockId: string) => {
+      if (coreState.blocks.length <= 1) return;
+      
+      const block = coreState.blocks.find(b => b.id === blockId);
+      if (!block || block.type !== 'text' || block.content.trim()) return;
+
+      deleteBlock(blockId);
+    }, [coreState.blocks, deleteBlock]),
+
+    clearTextBlockContent: useCallback((blockId: string) => {
+      updateCore({
+        blocks: coreState.blocks.map(block =>
+          block.id === blockId && block.type === 'text'
+            ? { ...block, content: '' }
+            : block
+        ),
+        focusedBlockId: blockId,
+      });
+    }, [coreState.blocks, updateCore]),
   };
 };

@@ -1,14 +1,6 @@
 /**
- * 简单白板编辑器 - 完全自包含版本
- * 普通模式：大文本框，支持文字和图片粘贴
- * Markdown模式：支持Markdown语法和实时预览
- *
- * 架构特点：
- * - 完全自包含：所有编辑器逻辑都内联在此组件中，无外部编辑器子组件依赖
- * - 双模式预渲染：通过CSS控制显示/隐藏实现零延迟切换
- * - 独立数据状态：两种模式使用完全独立的数据存储
- * - 内置Markdown组件：包含完整的Markdown渲染配置和样式
- * - 统一事件处理：所有用户交互都在此组件中统一处理
+ * Nano Board 编辑器组件
+ * 支持普通模式和Markdown模式的双模式编辑器
  */
 
 'use client';
@@ -23,11 +15,11 @@ import { BoardEditorProps, ContentBlock } from '@/types';
 import { updateAllTextareasHeight, adjustTextareaHeight } from '@/lib/textareaUtils';
 
 // 简单的防抖函数实现
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(func: T, wait: number): T {
   let timeout: NodeJS.Timeout;
-  return ((...args: any[]) => {
+  return ((...args: Parameters<T>) => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(null, args), wait);
+    timeout = setTimeout(() => func(...args), wait);
   }) as T;
 }
 
@@ -50,7 +42,7 @@ import { DragDropOverlay } from './DragDropOverlay';
 import { LoadingSpinner } from './LoadingSpinner';
 
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
-  // 使用自定义 Hooks 管理基础状态和逻辑
+  // 使用优化后的状态管理 Hook
   const {
     editorState,
     setIsMarkdownMode,
@@ -63,7 +55,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setHistorySidebarType,
     setLocalImageFiles,
     setLocalTextFiles,
-    setFileHistoryLoadingState
+    setFileHistoryLoadingState,
+    // 批量更新函数
+    updateCore,
+    updateUI
   } = useEditorState();
 
   // 解构编辑器状态
@@ -97,69 +92,59 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const [isCopying, setIsCopying] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // 获取当前活跃的数据块
+  // 模式切换函数
+  const toggleMarkdownMode = useCallback(() => {
+    const newMode = !isMarkdownMode;
+    updateCore({ isMarkdownMode: newMode });
+    updateUI({ showMarkdownPreview: false });
+    localStorage.setItem('nano-board-markdown-mode', newMode.toString());
+  }, [isMarkdownMode, updateCore, updateUI]);
+
+  const toggleMarkdownPreview = useCallback(() => {
+    const newPreview = !showMarkdownPreview;
+    setShowMarkdownPreview(newPreview);
+    localStorage.setItem('nano-board-markdown-preview', newPreview.toString());
+  }, [showMarkdownPreview, setShowMarkdownPreview]);
+
+  // 双模式数据管理
   const currentBlocks = isMarkdownMode ? markdownBlocks : normalBlocks;
   const setCurrentBlocks = isMarkdownMode ? setMarkdownBlocks : setNormalBlocks;
 
-  // 计算是否为单个文本框场景（只有一个文本框且无图片）- 分别为两种模式计算
   const isSingleNormalTextBlock = normalBlocks.length === 1 &&
                                   normalBlocks[0].type === 'text' &&
                                   !normalBlocks.some(block => block.type === 'image');
 
-  // 注意：移除了 isSingleMarkdownTextBlock，因为 Markdown 模式使用固定高度
-  // 不需要根据单/多文本框状态动态调整高度
-
-  // 注意：移除了 currentIsSingleTextBlock，改为直接使用各模式的独立状态
-  // 这样可以避免 Markdown 模式下的高度计算干扰
-
-  // 内容转换 Hook - 为两种模式分别创建
+  // 内容转换器
   const normalConverter = useContentConverter(false);
   const markdownConverter = useContentConverter(true);
 
-  // 内联函数 - 来自 NormalModeEditor
-  /**
-   * 处理复制文本内容到剪贴板
-   * @param content 要复制的文本内容
-   * @param blockId 文本块ID，用于显示复制状态
-   */
+  // 复制文本内容
   const handleCopyText = useCallback(async (content: string, blockId: string) => {
     try {
       await navigator.clipboard.writeText(content);
       setCopyingBlockId(blockId);
-      // 显示复制成功状态1秒后恢复
-      setTimeout(() => {
-        setCopyingBlockId(null);
-      }, 1000);
+      setTimeout(() => setCopyingBlockId(null), 1000);
     } catch (error) {
       console.error('复制失败:', error);
-      // 复制失败时也要清除状态
       setCopyingBlockId(null);
     }
   }, []);
 
-  // 内联函数 - 来自 MarkdownModeEditor
-  /**
-   * 处理复制Markdown内容到剪贴板
-   */
+  // 复制Markdown内容
   const handleCopyMarkdown = useCallback(async () => {
     try {
       const content = markdownConverter.blocksToContent(markdownBlocks);
       await navigator.clipboard.writeText(content);
       setIsCopying(true);
-      // 显示复制成功状态1秒后恢复
-      setTimeout(() => {
-        setIsCopying(false);
-      }, 1000);
+      setTimeout(() => setIsCopying(false), 1000);
     } catch (error) {
       console.error('复制失败:', error);
-      // 复制失败时也要清除状态
       setIsCopying(false);
     }
   }, [markdownConverter, markdownBlocks]);
 
-  // 内置的 Markdown 组件配置 - 支持完整的 Markdown 语法
+  // Markdown组件配置
   const markdownComponents = {
-    // 代码块和内联代码 - 修复宽度溢出问题
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code(props: any) {
       const { inline, className, children, ...rest } = props;
@@ -344,6 +329,17 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setLocalTextFiles,
     setFileHistoryLoadingState
   );
+
+  // 侧边栏切换的优化更新
+  const toggleHistorySidebar = useCallback(async () => {
+    const newSidebarState = !showHistorySidebar;
+    setShowHistorySidebar(newSidebarState);
+
+    if (newSidebarState) {
+      // 打开时刷新本地文件历史
+      await refreshFileHistory();
+    }
+  }, [showHistorySidebar, setShowHistorySidebar, refreshFileHistory]);
 
   // 双模式数据管理函数
   const updateNormalBlockContent = useCallback((blockId: string, content: string) => {
@@ -669,16 +665,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             showMarkdownPreview={showMarkdownPreview}
             isUploadingImage={isUploadingImage}
             fileHistoryLoadingState={fileHistoryLoadingState}
-            onToggleMarkdownMode={() => setIsMarkdownMode(!isMarkdownMode)}
-            onToggleMarkdownPreview={() => setShowMarkdownPreview(!showMarkdownPreview)}
+            onToggleMarkdownMode={toggleMarkdownMode}
+            onToggleMarkdownPreview={toggleMarkdownPreview}
             onClearAllContent={clearAllCurrentContent}
-            onToggleHistorySidebar={async () => {
-              setShowHistorySidebar(!showHistorySidebar);
-              if (!showHistorySidebar) {
-                // 打开时刷新本地文件历史
-                await refreshFileHistory(); // 刷新本地文件历史
-              }
-            }}
+            onToggleHistorySidebar={toggleHistorySidebar}
           />
 
           {/* 简单的主编辑区域 */}
