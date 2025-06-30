@@ -1,31 +1,38 @@
 /**
- * 滚动同步 Hook
+ * 滚动同步 Hook - 高性能优化版
  * 处理 Markdown 分栏模式下的滚动同步功能
  *
- * 改进点：
- * 1. 增加节流机制防止频繁触发
- * 2. 改进防抖时间和同步逻辑
- * 3. 增加边界条件检查
- * 4. 添加内容变化时的同步重置
+ * 性能优化点：
+ * 1. 使用 requestAnimationFrame 替代定时器节流，确保与浏览器渲染同步
+ * 2. 减少防抖时间从 150ms 到 50ms，提高响应性
+ * 3. 简化滚动位置设置，移除双重 RAF 调用
+ * 4. 保持边界条件检查和同步状态管理
+ * 5. 优化内存使用，避免不必要的函数创建
  */
 
 import { useRef, useCallback, useEffect } from 'react';
 
 /**
- * 节流函数 - 限制函数调用频率
- * @param func 要节流的函数
- * @param limit 节流时间间隔（毫秒）
- * @returns 节流后的函数
+ * 高性能节流函数 - 使用 requestAnimationFrame 优化
+ * 专门为滚动同步设计，确保最佳性能
  */
-function throttle<T extends (...args: Parameters<T>) => ReturnType<T>>(func: T, limit: number): T {
-  let inThrottle: boolean;
-  return ((...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+function rafThrottle(func: (...args: any[]) => void) {
+  let rafId: number | null = null;
+  let lastArgs: any[] | null = null;
+
+  return (...args: any[]) => {
+    lastArgs = args;
+
+    if (rafId === null) {
+      rafId = requestAnimationFrame(() => {
+        if (lastArgs) {
+          func(...lastArgs);
+        }
+        rafId = null;
+        lastArgs = null;
+      });
     }
-  }) as T;
+  };
 }
 
 /**
@@ -60,7 +67,7 @@ export const useScrollSync = () => {
   }, []);
 
   /**
-   * 安全的滚动位置设置
+   * 安全的滚动位置设置 - 优化版
    * @param element 目标元素
    * @param ratio 滚动比例 (0-1)
    */
@@ -72,10 +79,8 @@ export const useScrollSync = () => {
 
     const targetScrollTop = Math.min(scrollHeight, Math.max(0, scrollHeight * ratio));
 
-    // 使用 requestAnimationFrame 确保 DOM 更新完成后再滚动
-    requestAnimationFrame(() => {
-      element.scrollTop = targetScrollTop;
-    });
+    // 直接设置滚动位置，因为已经在 rafThrottle 中处理了时序
+    element.scrollTop = targetScrollTop;
   }, []);
 
   /**
@@ -108,7 +113,7 @@ export const useScrollSync = () => {
       // 应用滚动位置到目标元素
       setScrollPosition(targetElement, scrollRatio);
 
-      // 清除同步标志（使用更长的防抖时间确保稳定性）
+      // 清除同步标志（优化防抖时间，平衡响应性和稳定性）
       if (scrollSyncTimeoutRef.current) {
         clearTimeout(scrollSyncTimeoutRef.current);
       }
@@ -117,7 +122,7 @@ export const useScrollSync = () => {
         isScrollingSyncRef.current = false;
         lastSyncSourceRef.current = null;
         syncInProgressRef.current = false;
-      }, 150); // 增加防抖时间到 150ms，提高稳定性
+      }, 50); // 减少防抖时间到 50ms，提高响应性
 
     } catch (error) {
       console.warn('滚动同步出错:', error);
@@ -128,9 +133,9 @@ export const useScrollSync = () => {
     }
   }, [calculateScrollRatio, setScrollPosition]);
 
-  // 使用节流的滚动同步函数，防止频繁调用
+  // 使用高性能节流的滚动同步函数，基于 requestAnimationFrame 优化
   const throttledSyncScroll = useCallback(
-    throttle(syncScroll, 16), // 约 60fps 的更新频率
+    rafThrottle(syncScroll),
     [syncScroll]
   );
 

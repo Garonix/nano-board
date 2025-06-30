@@ -389,28 +389,41 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     ));
   }, []);
 
+  /**
+   * 在 Markdown 模式下插入文本到当前光标位置
+   * @param content 要插入的文本内容
+   */
+  const insertTextAtCursor = useCallback((content: string) => {
+    const textarea = document.querySelector('textarea[data-markdown-editor="true"]') as HTMLTextAreaElement;
+    if (!textarea) {
+      console.warn('未找到 Markdown 编辑器');
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentValue = textarea.value;
+
+    // 在光标位置插入内容，如果有选中文本则替换
+    const newValue = currentValue.slice(0, start) + content + currentValue.slice(end);
+
+    // 更新 React 状态
+    const newBlocks = markdownConverter.contentToBlocks(newValue);
+    setMarkdownBlocks(newBlocks);
+
+    // 设置新的光标位置到插入内容的末尾
+    setTimeout(() => {
+      const newCursorPos = start + content.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+      textarea.focus();
+    }, 0);
+  }, []);
+
   // 适配的文本内容插入函数 - 根据当前模式插入到对应的数据块中
   const insertTextContentAdapted = useCallback((content: string) => {
     if (isMarkdownMode) {
-      // Markdown 模式：查找第一个空文本框或创建新的
-      const emptyTextBlock = markdownBlocks.find(block => block.type === 'text' && block.content.trim() === '');
-
-      if (emptyTextBlock) {
-        // 如果存在空文本框，直接填入内容
-        setMarkdownBlocks(prev => prev.map(block =>
-          block.id === emptyTextBlock.id ? { ...block, content } : block
-        ));
-        setFocusedBlockId(emptyTextBlock.id);
-      } else {
-        // 如果不存在空文本框，创建新的文本框
-        const newTextBlock: ContentBlock = {
-          id: Date.now().toString(),
-          type: 'text',
-          content
-        };
-        setMarkdownBlocks(prev => [...prev, newTextBlock]);
-        setFocusedBlockId(newTextBlock.id);
-      }
+      // Markdown 模式：在当前光标位置插入文本
+      insertTextAtCursor(content);
     } else {
       // 普通模式：查找第一个空文本框或创建新的
       const emptyTextBlock = normalBlocks.find(block => block.type === 'text' && block.content.trim() === '');
@@ -432,7 +445,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         setFocusedBlockId(newTextBlock.id);
       }
     }
-  }, [isMarkdownMode, markdownBlocks, normalBlocks, setFocusedBlockId]);
+  }, [isMarkdownMode, insertTextAtCursor, normalBlocks, setFocusedBlockId]);
 
 
 
