@@ -130,7 +130,7 @@ pnpm-lock.yaml
 .eslintrc*
 jest.config.*
 tailwind.config.*
-postcss.config.*
+# postcss.config.* - 构建时需要，不忽略
 
 # ================================
 # 数据文件（运行时生成）
