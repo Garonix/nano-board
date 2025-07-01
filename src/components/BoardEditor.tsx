@@ -30,6 +30,7 @@ import { useImageManager } from '@/hooks/useImageManager';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
+import { useBlockSave } from '@/hooks/useBlockSave';
 
 import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
 
@@ -38,6 +39,7 @@ import { HistorySidebar } from './HistorySidebar';
 import { TopNavbar } from './TopNavbar';
 import { FileOperationsManager } from './FileOperationsManager';
 import { ConfirmDialog } from './Modal';
+import { SaveStatusContainer } from './SaveStatusIndicator';
 
 import { DragDropOverlay } from './DragDropOverlay';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -105,6 +107,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const [isCopying, setIsCopying] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  // 分块保存状态管理
+  const [savingBlockId, setSavingBlockId] = useState<string | null>(null);
+
   // 模式切换函数
   const toggleMarkdownMode = useCallback(() => {
     const newMode = !isMarkdownMode;
@@ -130,6 +135,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 内容转换器
   const normalConverter = useContentConverter(false);
   const markdownConverter = useContentConverter(true);
+
+  // 分块保存Hook - 普通模式
+  const normalBlockSave = useBlockSave(false, normalConverter.blocksToContent, {
+    savingBlockId,
+    setSavingBlockId
+  });
+
+  // 分块保存Hook - Markdown模式
+  const markdownBlockSave = useBlockSave(true, markdownConverter.blocksToContent, {
+    savingBlockId,
+    setSavingBlockId
+  });
 
   // 复制文本内容
   const handleCopyText = useCallback(async (content: string, blockId: string) => {
@@ -538,40 +555,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   }, [markdownConverter, setIsLoading]);
 
-  // 防抖保存函数
-  const debouncedSaveNormal = useCallback(
-    debounce(async (blocks: ContentBlock[]) => {
-      const content = normalConverter.blocksToContent(blocks);
-      if (!content.trim()) return;
-      try {
-        await fetch('/api/board', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content, mode: 'normal' }),
-        });
-      } catch (error) {
-        console.error('保存普通模式数据失败:', error);
-      }
-    }, 1000),
-    [normalConverter]
-  );
-
-  const debouncedSaveMarkdown = useCallback(
-    debounce(async (blocks: ContentBlock[]) => {
-      const content = markdownConverter.blocksToContent(blocks);
-      if (!content.trim()) return;
-      try {
-        await fetch('/api/board', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content, mode: 'markdown' }),
-        });
-      } catch (error) {
-        console.error('保存Markdown模式数据失败:', error);
-      }
-    }, 1000),
-    [markdownConverter]
-  );
+  // 注意：原有的防抖保存函数已被分块保存机制替代
 
   // 清空所有内容函数
   const clearAllNormalContent = useCallback(async () => {
@@ -647,18 +631,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     Promise.all([loadNormalData(), loadMarkdownData()]);
   }, []); // 只在组件挂载时执行一次
 
-  // 自动保存 - 分别保存两种模式的数据
+  // 更新blocks状态到保存Hook中
   useEffect(() => {
-    if (normalBlocks.length > 0 && !isLoading) {
-      debouncedSaveNormal(normalBlocks);
-    }
-  }, [normalBlocks, isLoading, debouncedSaveNormal]);
+    normalBlockSave.updateBlocks(normalBlocks);
+  }, [normalBlocks, normalBlockSave]);
 
   useEffect(() => {
-    if (markdownBlocks.length > 0 && !isLoading) {
-      debouncedSaveMarkdown(markdownBlocks);
-    }
-  }, [markdownBlocks, isLoading, debouncedSaveMarkdown]);
+    markdownBlockSave.updateBlocks(markdownBlocks);
+  }, [markdownBlocks, markdownBlockSave]);
 
   // 保存设置
   useEffect(() => {
@@ -813,68 +793,73 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                               </div>
                             )}
 
-                            <textarea
-                              ref={(el) => {
-                                if (el && focusedBlockId === block.id) {
-                                  // 当获得焦点时自动调整高度
-                                  setTimeout(() => {
-                                    adjustTextareaHeight(el, block.content, isSingleNormalTextBlock);
-                                  }, 0);
-                                }
-                              }}
-                              data-block-id={block.id}
-                              value={block.content}
-                              onChange={(e) => {
-                                const newContent = e.target.value;
-                                updateNormalBlockContent(block.id, newContent);
+                            <SaveStatusContainer
+                              isVisible={savingBlockId === block.id}
+                            >
+                              <textarea
+                                ref={(el) => {
+                                  if (el && focusedBlockId === block.id) {
+                                    // 当获得焦点时自动调整高度
+                                    setTimeout(() => {
+                                      adjustTextareaHeight(el, block.content, isSingleNormalTextBlock);
+                                    }, 0);
+                                  }
+                                }}
+                                data-block-id={block.id}
+                                value={block.content}
+                                onChange={(e) => {
+                                  const newContent = e.target.value;
+                                  updateNormalBlockContent(block.id, newContent);
 
-                                // 智能调整高度
-                                const target = e.target as HTMLTextAreaElement;
-                                adjustTextareaHeight(target, newContent, isSingleNormalTextBlock);
-                              }}
-                              onPaste={handleImagePaste}
-                              onKeyDown={(e) => handleKeyDown(e, block.id)}
-                              onFocus={(e) => {
-                                setFocusedBlockId(block.id);
-                                // 聚焦时调整高度
-                                const target = e.target as HTMLTextAreaElement;
-                                setTimeout(() => {
-                                  adjustTextareaHeight(target, block.content, isSingleNormalTextBlock);
-                                }, 0);
-                              }}
-                              onBlur={() => {
-                                // 图片已通过上传自动保存到文件系统，无需额外缓存操作
-                              }}
-                              className={cn(
-                                "w-full p-4 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-surface-elevated textarea-no-scrollbar transition-all duration-200",
-                                focusedBlockId === block.id
-                                  ? "border-transparent ring-4 ring-primary-600/70"
-                                  : "border-border hover:border-transparent hover:ring-4 hover:ring-gray-400/50",
-                                isSingleNormalTextBlock
-                                  ? "min-h-[25rem] max-h-[25rem]"
-                                  : "min-h-[2.5rem] max-h-[10rem]"
-                              )}
-                              placeholder={
-                                index === 0 && !block.content
-                                  ? "开始输入内容，支持粘贴或拖拽图片..."
-                                  : block.content
-                                    ? ""
-                                    : "继续输入..."
-                              }
-                              spellCheck={false}
-                              style={{
-                                height: isSingleNormalTextBlock
-                                  ? '25rem'
-                                  : 'auto',
-                                minHeight: isSingleNormalTextBlock
-                                  ? '25rem'
-                                  : '2.5rem',
-                                maxHeight: isSingleNormalTextBlock
-                                  ? '25rem'
-                                  : '10rem',
-                                overflowY: 'auto' // 启用垂直滚动，支持滚轮操作
-                              }}
-                            />
+                                  // 智能调整高度
+                                  const target = e.target as HTMLTextAreaElement;
+                                  adjustTextareaHeight(target, newContent, isSingleNormalTextBlock);
+                                }}
+                                onPaste={handleImagePaste}
+                                onKeyDown={(e) => handleKeyDown(e, block.id)}
+                                onFocus={(e) => {
+                                  setFocusedBlockId(block.id);
+                                  // 聚焦时调整高度
+                                  const target = e.target as HTMLTextAreaElement;
+                                  setTimeout(() => {
+                                    adjustTextareaHeight(target, block.content, isSingleNormalTextBlock);
+                                  }, 0);
+                                }}
+                                onBlur={() => {
+                                  // 失焦时触发保存
+                                  normalBlockSave.saveOnBlur(block.id);
+                                }}
+                                className={cn(
+                                  "w-full p-4 border rounded-lg outline-none resize-none font-mono text-sm leading-relaxed bg-surface-elevated textarea-no-scrollbar transition-all duration-200",
+                                  focusedBlockId === block.id
+                                    ? "border-transparent ring-4 ring-primary-600/70"
+                                    : "border-border hover:border-transparent hover:ring-4 hover:ring-gray-400/50",
+                                  isSingleNormalTextBlock
+                                    ? "min-h-[25rem] max-h-[25rem]"
+                                    : "min-h-[2.5rem] max-h-[10rem]"
+                                )}
+                                placeholder={
+                                  index === 0 && !block.content
+                                    ? "开始输入内容，支持粘贴或拖拽图片..."
+                                    : block.content
+                                      ? ""
+                                      : "继续输入..."
+                                }
+                                spellCheck={false}
+                                style={{
+                                  height: isSingleNormalTextBlock
+                                    ? '25rem'
+                                    : 'auto',
+                                  minHeight: isSingleNormalTextBlock
+                                    ? '25rem'
+                                    : '2.5rem',
+                                  maxHeight: isSingleNormalTextBlock
+                                    ? '25rem'
+                                    : '10rem',
+                                  overflowY: 'auto' // 启用垂直滚动，支持滚轮操作
+                                }}
+                              />
+                            </SaveStatusContainer>
                           </div>
                         ) : (
                           <div className="w-full text-center my-4">
@@ -988,7 +973,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                       onKeyDown={handleMarkdownKeyDown}
                       onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
                       onBlur={() => {
-                        // 图片已通过上传自动保存到文件系统，无需额外缓存操作
+                        // 失焦时触发保存（Markdown模式保存整个内容）
+                        if (markdownBlocks.length > 0) {
+                          markdownBlockSave.saveOnBlur('markdown-editor');
+                        }
                       }}
                       className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg markdown-editor-textarea"
                       placeholder="开始输入Markdown内容，支持粘贴图片..."

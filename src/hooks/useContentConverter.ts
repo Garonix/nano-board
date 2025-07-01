@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 import { ContentBlock, ImageData } from '@/types';
 
 // 普通模式下用于分隔独立文本块的特殊标识符
-const TEXT_BLOCK_SEPARATOR = '---TEXT_BLOCK_SEPARATOR---';
+const TEXT_BLOCK_SEPARATOR = '{}';
 
 /**
  * 内容转换 Hook
@@ -90,7 +90,21 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
       }
     } else {
       // 普通模式：使用分隔符来识别独立的文本块
-      const parts = content.split(`\n${TEXT_BLOCK_SEPARATOR}\n`);
+      // 支持新旧分隔符格式以确保向后兼容性
+      let parts: string[];
+
+      // 优先尝试新的大括号分隔符
+      if (content.includes(`\n${TEXT_BLOCK_SEPARATOR}\n`)) {
+        parts = content.split(`\n${TEXT_BLOCK_SEPARATOR}\n`);
+      }
+      // 向后兼容：支持旧的分隔符格式
+      else if (content.includes('\n---TEXT_BLOCK_SEPARATOR---\n')) {
+        parts = content.split('\n---TEXT_BLOCK_SEPARATOR---\n');
+      }
+      // 如果没有分隔符，将整个内容作为单个块
+      else {
+        parts = [content];
+      }
 
       for (const part of parts) {
         const trimmedPart = part.trim();
