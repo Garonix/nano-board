@@ -6,46 +6,46 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface PasswordAuthProps {
   onAuthenticated: () => void;
 }
 
-// 默认密码（当未设置环境变量时使用）
-const DEFAULT_PASSWORD = 'nano2024';
-
 export const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [correctPassword, setCorrectPassword] = useState(DEFAULT_PASSWORD);
-
-  // 获取自定义密码（如果设置了环境变量）
-  useEffect(() => {
-    // 从服务器端获取自定义密码配置
-    // 注意：这里不直接暴露密码到客户端，而是通过API验证
-    const customPassword = process.env.ACCESS_PASSWORD;
-    if (customPassword && customPassword.trim()) {
-      setCorrectPassword(customPassword);
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // 模拟验证延迟
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // 通过 API 验证密码
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
 
-    if (password === correctPassword) {
-      // 验证成功，保存到sessionStorage
-      sessionStorage.setItem('nano-board-auth', 'true');
-      onAuthenticated();
-    } else {
-      setError('密码错误，请重试');
+      const result = await response.json();
+
+      if (result.success) {
+        // 验证成功，保存到sessionStorage
+        sessionStorage.setItem('nano-board-auth', 'true');
+        onAuthenticated();
+      } else {
+        setError(result.error || '密码错误，请重试');
+        setPassword('');
+      }
+    } catch (error) {
+      console.error('验证请求失败:', error);
+      setError('验证失败，请重试');
       setPassword('');
     }
 
@@ -150,10 +150,7 @@ export const PasswordAuth: React.FC<PasswordAuthProps> = ({ onAuthenticated }) =
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-sm text-neutral-600">
-                {correctPassword === DEFAULT_PASSWORD
-                  ? '默认密码：nano2024'
-                  : '请联系管理员获取访问密码'
-                }
+                请联系管理员获取访问密码
               </p>
             </div>
           </div>

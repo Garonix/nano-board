@@ -98,8 +98,35 @@ export const useBlockSave = (
     await saveBlocks(currentBlocks, blockId);
   }, [saveBlocks]);
 
+  /**
+   * 图片插入后立即保存
+   * @param blockId 图片块ID
+   */
+  const saveOnImageInsert = useCallback(async (blockId: string) => {
+    const currentBlocks = currentBlocksRef.current;
+
+    // 检查是否有有效的内容需要保存
+    const hasValidContent = currentBlocks.some(block => {
+      if (block.type === 'text') {
+        return block.content.trim() !== '';
+      } else if (block.type === 'image') {
+        return block.content !== '';
+      }
+      return false;
+    });
+
+    // 如果没有任何有效内容，不进行保存
+    if (!hasValidContent) {
+      return;
+    }
+
+    await saveBlocks(currentBlocks, blockId);
+    console.log(`图片块 ${blockId} 插入后立即保存完成`);
+  }, [saveBlocks]);
+
   return {
     updateBlocks,
-    saveOnBlur
+    saveOnBlur,
+    saveOnImageInsert
   };
 };

@@ -492,7 +492,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     isMarkdownMode,
     isMarkdownMode ? markdownConverter.contentToBlocks : normalConverter.contentToBlocks,
     setIsUploadingImage,
-    refreshFileHistory
+    refreshFileHistory,
+    // 传递图片保存函数，图片插入后立即保存
+    isMarkdownMode ? markdownBlockSave.saveOnImageInsert : normalBlockSave.saveOnImageInsert
   );
 
   // 滚动同步 Hook - 使用改进版本
@@ -690,6 +692,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       onInsertTextContent={insertTextContentAdapted}
       onCloseHistorySidebar={() => setShowHistorySidebar(false)}
       onRefreshFileHistory={refreshFileHistory}
+      saveOnImageInsert={isMarkdownMode ? markdownBlockSave.saveOnImageInsert : normalBlockSave.saveOnImageInsert}
     >
       {(fileOperations) => (
         <div className={cn('h-screen flex flex-col bg-white', className)}>

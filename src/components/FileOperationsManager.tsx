@@ -29,6 +29,9 @@ export interface FileOperationsManagerProps {
   onCloseHistorySidebar: () => void;
   onRefreshFileHistory: () => Promise<void>;
 
+  // 图片插入后立即保存函数
+  saveOnImageInsert?: (blockId: string) => Promise<void>;
+
   // 子组件渲染函数 - 使用 render props 模式
   children: (operations: FileOperations) => React.ReactNode;
 }
@@ -65,6 +68,7 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
   onInsertTextContent,
   onCloseHistorySidebar,
   onRefreshFileHistory,
+  saveOnImageInsert,
   children
 }) => {
   // 本地状态
@@ -132,7 +136,7 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
   };
 
   /**
-   * 处理插入图片缓存
+   * 处理插入图片缓存（添加立即保存机制和优化空文本框处理）
    */
   const handleInsertLocalImageFile = (imagePath: string, fileName: string): void => {
     try {
@@ -163,16 +167,57 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
             textarea.setSelectionRange(newCursorPos, newCursorPos);
             textarea.focus();
           }, 0);
+
+          // Markdown模式图片插入后立即触发保存
+          if (saveOnImageInsert) {
+            // 使用setTimeout确保状态更新完成后再保存
+            setTimeout(async () => {
+              await saveOnImageInsert('markdown-editor');
+              console.log('Markdown模式图片缓存插入后立即保存完成');
+            }, 150); // 稍微延长时间确保DOM和状态都更新完成
+          }
         }
       } else {
-        // 在普通模式下插入图片到页面末尾
-        const newImageBlock = {
-          id: Date.now().toString(),
-          type: 'image' as const,
-          content: imagePath,
-          alt: altText
-        };
-        onSetBlocks((prev: ContentBlock[]) => [...prev, newImageBlock]);
+        // 在普通模式下插入图片到页面末尾（优化空文本框处理）
+        const imageId = Date.now().toString();
+
+        onSetBlocks(prev => {
+          const newBlocks = [...prev];
+
+          // 优化空文本框处理逻辑
+          // 检查最后一个块是否为空文本框，如果是则删除
+          if (newBlocks.length > 0) {
+            const lastBlock = newBlocks[newBlocks.length - 1];
+            if (lastBlock.type === 'text' &&
+                (lastBlock.content === '' || lastBlock.content.trim() === '')) {
+              console.log('删除末尾的空文本框，为图片缓存插入做准备');
+              newBlocks.pop();
+            }
+          }
+
+          // 创建图片块
+          const imageBlock: ContentBlock = {
+            id: imageId,
+            type: 'image',
+            content: imagePath,
+            alt: altText
+          };
+
+          // 添加图片块
+          newBlocks.push(imageBlock);
+          console.log(`普通模式图片缓存块已插入，ID: ${imageId}`);
+
+          return newBlocks;
+        });
+
+        // 图片插入后立即触发保存
+        if (saveOnImageInsert) {
+          // 使用setTimeout确保状态更新完成后再保存
+          setTimeout(async () => {
+            await saveOnImageInsert(imageId);
+            console.log('普通模式图片缓存插入后立即保存完成');
+          }, 100);
+        }
       }
 
       onCloseHistorySidebar();

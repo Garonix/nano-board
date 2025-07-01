@@ -17,6 +17,7 @@ import {
  * @param contentToBlocks 内容转换函数
  * @param setIsUploadingImage 设置上传状态函数
  * @param refreshFileHistory 刷新文件历史函数
+ * @param saveOnImageInsert 图片插入后的保存函数
  * @returns 图片管理相关函数
  */
 export const useImageManager = (
@@ -24,13 +25,14 @@ export const useImageManager = (
   isMarkdownMode: boolean,
   contentToBlocks: (content: string) => ContentBlock[],
   setIsUploadingImage: (loading: boolean) => void,
-  refreshFileHistory?: () => Promise<void>
+  refreshFileHistory?: () => Promise<void>,
+  saveOnImageInsert?: (blockId: string) => Promise<void>
 ) => {
 
   // 注意：图片缓存功能已移除，统一使用文件系统扫描
 
-  // 在Markdown模式下插入图片
-  const insertImageInMarkdownMode = useCallback((imageSrc: string, altText: string) => {
+  // 在Markdown模式下插入图片（添加立即保存机制）
+  const insertImageInMarkdownMode = useCallback(async (imageSrc: string, altText: string) => {
     console.log('insertImageInMarkdownMode 被调用:', { imageSrc, altText });
 
     const textarea = document.querySelector('textarea[data-markdown-editor="true"]') as HTMLTextAreaElement;
@@ -68,46 +70,65 @@ export const useImageManager = (
       textarea.focus();
       console.log('光标已设置到位置:', newCursorPos);
     }, 0);
-  }, [contentToBlocks, setBlocks]);
 
-  // 在普通模式下将图片添加到页面末尾（不自动创建文本框）
-  const insertImageAtEnd = useCallback((imageSrc: string, altText: string) => {
+    // Markdown模式图片插入后立即触发保存
+    if (saveOnImageInsert) {
+      // 使用setTimeout确保状态更新完成后再保存
+      setTimeout(async () => {
+        await saveOnImageInsert('markdown-editor');
+        console.log('Markdown模式图片插入后立即保存完成');
+      }, 150); // 稍微延长时间确保DOM和状态都更新完成
+    }
+  }, [contentToBlocks, setBlocks, saveOnImageInsert]);
+
+  // 在普通模式下将图片添加到页面末尾（优化空文本框处理）
+  const insertImageAtEnd = useCallback(async (imageSrc: string, altText: string) => {
+    const imageId = Date.now().toString();
+
     setBlocks(prev => {
       const newBlocks = [...prev];
 
-      // 检查并删除末尾的空文本框
-      // 如果最后一个块是空的文本块，删除它以避免重复的空文本框
+      // 优化空文本框处理逻辑
+      // 检查最后一个块是否为空文本框，如果是则删除
       if (newBlocks.length > 0) {
         const lastBlock = newBlocks[newBlocks.length - 1];
         if (lastBlock.type === 'text' &&
             (lastBlock.content === '' || lastBlock.content.trim() === '')) {
-          // 删除空的文本框，为图片插入做准备
+          console.log('删除末尾的空文本框，为图片插入做准备');
           newBlocks.pop();
         }
       }
 
       // 创建图片块
       const imageBlock: ContentBlock = {
-        id: Date.now().toString(),
+        id: imageId,
         type: 'image',
         content: imageSrc,
         alt: altText
       };
 
-      // 只添加图片块，不再自动创建文本框
-      // 用户需要通过"+"按钮手动创建新文本框
+      // 添加图片块
       newBlocks.push(imageBlock);
+      console.log(`普通模式图片块已插入，ID: ${imageId}`);
 
       return newBlocks;
     });
-  }, [setBlocks]);
 
-  // 统一的图片插入函数
-  const insertImage = useCallback((imageSrc: string, altText: string) => {
+    // 图片插入后立即触发保存
+    if (saveOnImageInsert) {
+      // 使用setTimeout确保状态更新完成后再保存
+      setTimeout(async () => {
+        await saveOnImageInsert(imageId);
+      }, 100);
+    }
+  }, [setBlocks, saveOnImageInsert]);
+
+  // 统一的图片插入函数（保存逻辑已在各自的插入函数中处理）
+  const insertImage = useCallback(async (imageSrc: string, altText: string) => {
     if (isMarkdownMode) {
-      insertImageInMarkdownMode(imageSrc, altText);
+      await insertImageInMarkdownMode(imageSrc, altText);
     } else {
-      insertImageAtEnd(imageSrc, altText);
+      await insertImageAtEnd(imageSrc, altText);
     }
   }, [isMarkdownMode, insertImageInMarkdownMode, insertImageAtEnd]);
 
