@@ -14,14 +14,7 @@ import { cn } from '@/lib/utils';
 import { BoardEditorProps, ContentBlock } from '@/types';
 import { updateAllTextareasHeight, adjustTextareaHeight } from '@/lib/textareaUtils';
 
-// 简单的防抖函数实现
-function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(func: T, wait: number): T {
-  let timeout: NodeJS.Timeout;
-  return ((...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  }) as T;
-}
+
 
 // 自定义 Hooks
 import { useEditorState } from '@/hooks/useEditorState';
