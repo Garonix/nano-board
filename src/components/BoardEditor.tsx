@@ -960,56 +960,60 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   showMarkdownPreview ? 'flex-1' : 'w-full'
                 )}>
                   {/* 现代化文本编辑区域容器 */}
-                  <div
-                    className="h-full border border-border rounded-lg bg-surface-elevated hover:border-transparent hover:ring-4 hover:ring-gray-400/50 focus-within:border-transparent focus-within:ring-4 focus-within:ring-primary-600/70 shadow-sm hover:shadow-md transition-all duration-200 relative"
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
+                  <SaveStatusContainer
+                    isVisible={savingBlockId === 'markdown-editor'}
                   >
-                    <textarea
-                      ref={editorRef}
-                      data-markdown-editor="true"
-                      value={markdownConverter.blocksToContent(markdownBlocks)}
-                      onChange={(e) => {
-                        const newBlocks = markdownConverter.contentToBlocks(e.target.value);
-                        setMarkdownBlocks(newBlocks);
+                    <div
+                      className="h-full border border-border rounded-lg bg-surface-elevated hover:border-transparent hover:ring-4 hover:ring-gray-400/50 focus-within:border-transparent focus-within:ring-4 focus-within:ring-primary-600/70 shadow-sm hover:shadow-md transition-all duration-200 relative"
+                      onMouseEnter={() => setIsHovered(true)}
+                      onMouseLeave={() => setIsHovered(false)}
+                    >
+                      <textarea
+                        ref={editorRef}
+                        data-markdown-editor="true"
+                        value={markdownConverter.blocksToContent(markdownBlocks)}
+                        onChange={(e) => {
+                          const newBlocks = markdownConverter.contentToBlocks(e.target.value);
+                          setMarkdownBlocks(newBlocks);
 
-                        // 内容变化时重置滚动同步状态，确保同步准确性
-                        // 使用 setTimeout 确保 DOM 更新完成后再重置
-                        setTimeout(() => {
-                          resetScrollSync();
-                        }, 0);
-                      }}
-                      onPaste={handleImagePaste}
-                      onKeyDown={handleMarkdownKeyDown}
-                      onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
-                      onBlur={() => {
-                        // 失焦时触发保存（Markdown模式保存整个内容）
-                        if (markdownBlocks.length > 0) {
-                          markdownBlockSave.saveOnBlur('markdown-editor');
-                        }
-                      }}
-                      className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg markdown-editor-textarea"
-                      placeholder="开始输入Markdown内容，支持粘贴图片..."
-                      spellCheck={false}
-                      style={{
-                        minHeight: 'calc(100vh - 140px)', // 固定高度以确保滚动同步正常工作
-                        height: 'calc(100vh - 140px)',
-                        maxHeight: 'calc(100vh - 140px)'
-                      }}
-                    />
+                          // 内容变化时重置滚动同步状态，确保同步准确性
+                          // 使用 setTimeout 确保 DOM 更新完成后再重置
+                          setTimeout(() => {
+                            resetScrollSync();
+                          }, 0);
+                        }}
+                        onPaste={handleImagePaste}
+                        onKeyDown={handleMarkdownKeyDown}
+                        onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
+                        onBlur={() => {
+                          // 失焦时触发保存（Markdown模式保存整个内容）
+                          if (markdownBlocks.length > 0) {
+                            markdownBlockSave.saveOnBlur('markdown-editor');
+                          }
+                        }}
+                        className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg markdown-editor-textarea"
+                        placeholder="开始输入Markdown内容，支持粘贴图片..."
+                        spellCheck={false}
+                        style={{
+                          minHeight: 'calc(100vh - 140px)', // 固定高度以确保滚动同步正常工作
+                          height: 'calc(100vh - 140px)',
+                          maxHeight: 'calc(100vh - 140px)'
+                        }}
+                      />
 
-                    {/* 复制按钮 - 右下角显示，hover时显示，空内容时不显示 */}
-                    {markdownConverter.blocksToContent(markdownBlocks).trim() && isHovered && (
-                      <button
-                        onClick={handleCopyMarkdown}
-                        className="absolute top-2 right-2 w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center z-10"
-                        title="复制"
-                      >
-                        {/* 显示复制状态或复制图标 */}
-                        {isCopying ? '✓' : '⧉'}
-                      </button>
-                    )}
-                  </div>
+                      {/* 复制按钮 - 右下角显示，hover时显示，空内容时不显示 */}
+                      {markdownConverter.blocksToContent(markdownBlocks).trim() && isHovered && (
+                        <button
+                          onClick={handleCopyMarkdown}
+                          className="absolute top-2 right-2 w-5 h-5 bg-green-500 hover:bg-green-600 text-white text-xs rounded-md shadow-lg transition-all duration-200 flex items-center justify-center z-10"
+                          title="复制"
+                        >
+                          {/* 显示复制状态或复制图标 */}
+                          {isCopying ? '✓' : '⧉'}
+                        </button>
+                      )}
+                    </div>
+                  </SaveStatusContainer>
                 </div>
 
                 {/* 预览区域 - 使用统一的flex-1确保宽度一致 */}

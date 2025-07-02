@@ -79,24 +79,46 @@ export const useBlockSave = (
 
   /**
    * 失焦保存指定文本块
-   * @param blockId 文本块ID
+   * @param blockId 文本块ID（在Markdown模式下可以是特殊标识符）
    */
   const saveOnBlur = useCallback(async (blockId: string) => {
     const currentBlocks = currentBlocksRef.current;
-    const targetBlock = currentBlocks.find(block => block.id === blockId);
 
-    // 只保存文本类型的块
-    if (!targetBlock || targetBlock.type !== 'text') {
-      return;
+    if (isMarkdownMode) {
+      // Markdown模式：保存整个内容，不需要查找特定块
+      // 检查是否有任何有效内容
+      const hasValidContent = currentBlocks.some(block => {
+        if (block.type === 'text') {
+          return block.content.trim() !== '';
+        } else if (block.type === 'image') {
+          return block.content !== '';
+        }
+        return false;
+      });
+
+      // 如果没有任何有效内容，不进行保存
+      if (!hasValidContent) {
+        return;
+      }
+
+      await saveBlocks(currentBlocks, blockId);
+    } else {
+      // 普通模式：查找特定的文本块
+      const targetBlock = currentBlocks.find(block => block.id === blockId);
+
+      // 只保存文本类型的块
+      if (!targetBlock || targetBlock.type !== 'text') {
+        return;
+      }
+
+      // 如果内容为空，不进行保存
+      if (!targetBlock.content.trim()) {
+        return;
+      }
+
+      await saveBlocks(currentBlocks, blockId);
     }
-
-    // 如果内容为空，不进行保存
-    if (!targetBlock.content.trim()) {
-      return;
-    }
-
-    await saveBlocks(currentBlocks, blockId);
-  }, [saveBlocks]);
+  }, [saveBlocks, isMarkdownMode]);
 
   /**
    * 图片插入后立即保存
