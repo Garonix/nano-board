@@ -143,18 +143,31 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   // 复制文本内容
   const handleCopyText = useCallback(async (content: string, blockId: string) => {
+    // 检查是否支持 Clipboard API
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      alert('复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用');
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(content);
       setCopyingBlockId(blockId);
       setTimeout(() => setCopyingBlockId(null), 1000);
     } catch (error) {
       console.error('复制失败:', error);
+      alert('复制失败，请检查浏览器权限设置');
       setCopyingBlockId(null);
     }
   }, []);
 
   // 复制Markdown内容
   const handleCopyMarkdown = useCallback(async () => {
+    // 检查是否支持 Clipboard API
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      alert('复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用');
+      return;
+    }
+
     try {
       const content = markdownConverter.blocksToContent(markdownBlocks);
       await navigator.clipboard.writeText(content);
@@ -162,6 +175,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       setTimeout(() => setIsCopying(false), 1000);
     } catch (error) {
       console.error('复制失败:', error);
+      alert('复制失败，请检查浏览器权限设置');
       setIsCopying(false);
     }
   }, [markdownConverter, markdownBlocks]);

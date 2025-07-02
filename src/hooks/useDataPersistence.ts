@@ -78,28 +78,7 @@ export const useDataPersistence = (
     saveTimeoutRef.current = setTimeout(() => saveData(blocks), 1000);
   }, [saveData]);
 
-  // 清空所有内容 - 同时清空对应的数据文件
-  const clearAllContent = useCallback(async (clearAllBlocks: () => void) => {
-    if (window.confirm('确定要清空所有内容吗？此操作将同时清空数据文件，无法撤销。')) {
-      try {
-        // 清空前端状态
-        clearAllBlocks();
-
-        // 清空对应模式的数据文件
-        const mode = isMarkdownMode ? 'markdown' : 'normal';
-        await fetch('/api/board', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: '', mode }),
-        });
-
-        console.log(`${mode === 'normal' ? '普通模式' : 'Markdown模式'}数据文件已清空`);
-      } catch (error) {
-        console.error('清空数据文件失败:', error);
-        // 即使API调用失败，前端状态已经清空，不影响用户体验
-      }
-    }
-  }, [isMarkdownMode]);
+  // 注意：clearAllContent 函数已被移除，因为现在使用 BoardEditor 中的现代化确认对话框实现
 
   // 清理函数
   const cleanup = useCallback(() => {
@@ -112,7 +91,6 @@ export const useDataPersistence = (
     loadData,
     saveData,
     debouncedSave,
-    clearAllContent,
     cleanup
   };
 };

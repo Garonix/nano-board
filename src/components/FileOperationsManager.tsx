@@ -247,13 +247,9 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
 
   /**
    * 处理清除所有本地文件
+   * 注意：确认逻辑由调用方（HistorySidebar）处理，避免重复确认
    */
   const handleClearAllLocalFiles = async (fileType: 'image' | 'text'): Promise<void> => {
-    // 保留危险操作的确认提示
-    if (!window.confirm(`确定要删除所有${fileType === 'image' ? '图片' : '文本'}文件吗？此操作无法撤销。`)) {
-      return;
-    }
-
     try {
       const success = await clearAllFiles(fileType);
       if (success) {
