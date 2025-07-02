@@ -287,7 +287,7 @@ html, body, #__next {
   overflow: hidden;
 }
 
-/* Markdown编辑器专用样式 - 确保高度设置稳定，保持滚动同步功能 */
+/* Markdown编辑器专用样式 - 使用flex布局确保高度一致性和布局稳定性 */
 .markdown-editor-textarea {
   box-sizing: border-box;
   line-height: 1.6;
@@ -297,13 +297,17 @@ html, body, #__next {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 强制保护Markdown编辑器的高度设置，防止被JavaScript动态修改覆盖 */
+/* Markdown编辑器高度继承设置 - 让textarea继承容器的固定高度 */
 textarea[data-markdown-editor="true"] {
-  min-height: calc(100vh - 140px) !important;
-  height: calc(100vh - 140px) !important;
-  max-height: calc(100vh - 140px) !important;
+  /* 让textarea继承容器高度，而不是设置自己的固定高度 */
   box-sizing: border-box !important;
+  /* 确保textarea能够正确填满容器 */
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
 }
+
+
 
 @media (max-width: 768px) {
   /* 移动端Markdown编辑器优化 */

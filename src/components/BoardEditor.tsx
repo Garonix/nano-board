@@ -976,21 +976,26 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                 transition: 'opacity 0ms', // 零延迟切换
               }}
             >
-              {/* Markdown 模式编辑器内联内容 */}
+              {/* Markdown 模式编辑器内联内容 - 修复分栏布局高度一致性问题 */}
               <div className="flex w-full h-full px-4 py-2 gap-2">
-                {/* 编辑区域 - 使用统一的flex-1确保宽度一致 */}
+                {/* 编辑区域 - 使用统一的flex布局和高度计算确保与预览区域完全一致 */}
                 <div className={cn(
                   'flex flex-col min-w-0', // 使用min-w-0防止内容溢出影响flex宽度计算
                   showMarkdownPreview ? 'flex-1' : 'w-full'
                 )}>
-                  {/* 现代化文本编辑区域容器 */}
+                  {/* 现代化文本编辑区域容器 - 使用固定高度确保与预览区域高度一致 */}
                   <SaveStatusContainer
                     isVisible={savingBlockId === 'markdown-editor'}
                   >
                     <div
-                      className="h-full border border-border rounded-lg bg-surface-elevated hover:border-transparent hover:ring-4 hover:ring-gray-400/50 focus-within:border-transparent focus-within:ring-4 focus-within:ring-primary-600/70 shadow-sm hover:shadow-md transition-all duration-200 relative"
+                      className="border border-border rounded-lg bg-surface-elevated hover:border-transparent hover:ring-4 hover:ring-gray-400/50 focus-within:border-transparent focus-within:ring-4 focus-within:ring-primary-600/70 shadow-sm hover:shadow-md transition-all duration-200 relative"
                       onMouseEnter={() => setIsHovered(true)}
                       onMouseLeave={() => setIsHovered(false)}
+                      style={{
+                        minHeight: 'calc(100vh - 140px)', // 与预览区域完全一致的高度
+                        height: 'calc(100vh - 140px)',
+                        maxHeight: 'calc(100vh - 140px)'
+                      }}
                     >
                       <textarea
                         id="markdown-editor"
@@ -1019,14 +1024,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                         className="w-full h-full p-3 border-none outline-none resize-none font-mono text-sm leading-relaxed bg-transparent overflow-auto textarea-no-scrollbar rounded-lg markdown-editor-textarea"
                         placeholder="开始输入Markdown内容，支持粘贴图片..."
                         spellCheck={false}
-                        style={{
-                          minHeight: 'calc(100vh - 140px)', // 固定高度以确保滚动同步正常工作
-                          height: 'calc(100vh - 140px)',
-                          maxHeight: 'calc(100vh - 140px)'
-                        }}
                       />
 
-                      {/* 复制按钮 - 右下角显示，hover时显示，空内容时不显示 */}
+                      {/* 复制按钮 - 右上角显示，hover时显示，空内容时不显示 */}
                       {markdownConverter.blocksToContent(markdownBlocks).trim() && isHovered && (
                         <button
                           onClick={handleCopyMarkdown}
@@ -1041,20 +1041,22 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                   </SaveStatusContainer>
                 </div>
 
-                {/* 预览区域 - 使用统一的flex-1确保宽度一致 */}
+                {/* 预览区域 - 保持原有预览样式，只修复高度一致性 */}
                 {showMarkdownPreview && (
                   <div className="flex-1 flex flex-col min-w-0"> {/* 使用min-w-0防止内容溢出影响flex宽度计算 */}
-                    {/* 现代化预览区域容器 */}
-                    <div className="h-full border border-border rounded-lg bg-neutral-50 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    {/* 现代化预览区域容器 - 与编辑区域使用完全相同的高度设置 */}
+                    <div
+                      className="border border-border rounded-lg bg-neutral-50 shadow-sm hover:shadow-md transition-shadow duration-200"
+                      style={{
+                        minHeight: 'calc(100vh - 140px)', // 与编辑区域完全一致的高度
+                        height: 'calc(100vh - 140px)',
+                        maxHeight: 'calc(100vh - 140px)'
+                      }}
+                    >
                       <div
                         ref={previewRef}
                         className="h-full overflow-auto p-3"
                         onScroll={syncScrollFromPreview}
-                        style={{
-                          minHeight: 'calc(100vh - 140px)', // 与编辑区域保持一致的高度以确保滚动同步
-                          height: 'calc(100vh - 140px)',
-                          maxHeight: 'calc(100vh - 140px)'
-                        }}
                       >
                         {markdownConverter.blocksToContent(markdownBlocks).trim() ? (
                           <ReactMarkdown
