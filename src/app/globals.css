@@ -307,6 +307,86 @@ textarea[data-markdown-editor="true"] {
   max-height: 100% !important;
 }
 
+/* 现代化输入框样式 - 与白板内容页面保持一致的设计语言 */
+.modern-input {
+  /* 基础样式 */
+  border: 1px solid var(--border);
+  border-radius: 0.5rem; /* rounded-lg */
+  background-color: var(--surface-elevated);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+
+  /* 文本渲染优化 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  /* 过渡效果 */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 悬停状态 */
+  &:hover {
+    border-color: var(--neutral-300);
+    box-shadow: 0 1px 3px 0 rgba(var(--shadow-color), var(--shadow-opacity));
+  }
+
+  /* 聚焦状态 - 蓝色光环效果 */
+  &:focus {
+    outline: none;
+    border-color: transparent;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.7); /* blue-500 with 70% opacity */
+  }
+
+  /* 禁用状态 */
+  &:disabled {
+    background-color: var(--neutral-100);
+    color: var(--neutral-500);
+    cursor: not-allowed;
+    border-color: var(--border-subtle);
+  }
+
+  /* 占位符样式 */
+  &::placeholder {
+    color: var(--neutral-400);
+  }
+}
+
+/* 深色模式下的输入框样式调整 */
+@media (prefers-color-scheme: dark) {
+  .modern-input {
+    &:hover {
+      border-color: var(--neutral-600);
+    }
+
+    &:disabled {
+      background-color: var(--neutral-800);
+      color: var(--neutral-500);
+      border-color: var(--border-subtle);
+    }
+
+    &::placeholder {
+      color: var(--neutral-500);
+    }
+  }
+}
+
+/* 现代化旋转动画 - 与白板内容页面保持一致 */
+@keyframes spin-modern {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-modern {
+  animation: spin-modern 1s linear infinite;
+}
+
 
 
 @media (max-width: 768px) {
