@@ -1,3 +1,8 @@
+/**
+ * 应用根布局
+ * @description 配置全局字体、元数据和HTML结构
+ */
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -22,6 +27,10 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * 根布局组件
+ * @param children - 子组件
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

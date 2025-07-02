@@ -1,12 +1,6 @@
 /**
- * 编辑器状态管理 Hook - 简洁版本
- * 符合Nano Board简洁性原则的状态管理优化
- * 
- * 优化要点：
- * 1. 将15+个useState合并为3个状态组，减少重渲染
- * 2. 提供批量更新机制，提升性能
- * 3. 保持API向后兼容性
- * 4. 单文件实现，避免过度工程化
+ * 编辑器状态管理Hook
+ * @description 统一管理编辑器的核心状态、UI状态和文件状态
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -19,18 +13,14 @@ import {
   FileHistoryLoadingState
 } from '@/types';
 
-/**
- * 核心编辑器状态组（高频更新）
- */
+/** 核心编辑器状态 */
 interface CoreState {
   blocks: ContentBlock[];
   focusedBlockId: string;
   isMarkdownMode: boolean;
 }
 
-/**
- * UI交互状态组（中频更新）
- */
+/** UI交互状态 */
 interface UIState {
   isLoading: boolean;
   isUploadingImage: boolean;
@@ -40,9 +30,7 @@ interface UIState {
   historySidebarType: HistorySidebarType;
 }
 
-/**
- * 文件历史状态组（低频更新）
- */
+/** 文件历史状态 */
 interface FileState {
   localImageFiles: LocalImageFileItem[];
   localTextFiles: LocalTextFileItem[];
@@ -62,7 +50,6 @@ export const useEditorState = () => {
     isMarkdownMode: false,
   });
 
-  // UI状态组（中频更新）
   const [uiState, setUIState] = useState<UIState>({
     isLoading: true,
     isUploadingImage: false,
@@ -72,7 +59,6 @@ export const useEditorState = () => {
     historySidebarType: 'images',
   });
 
-  // 文件历史状态组（低频更新）
   const [fileState, setFileState] = useState<FileState>({
     localImageFiles: [],
     localTextFiles: [],
@@ -83,27 +69,23 @@ export const useEditorState = () => {
     },
   });
 
-  // ==================== 批量更新函数 ====================
-  
-  // 核心状态批量更新
+  /** 批量更新核心状态 */
   const updateCore = useCallback((updates: Partial<CoreState>) => {
     setCoreState(prev => ({ ...prev, ...updates }));
   }, []);
 
-  // UI状态批量更新
+  /** 批量更新UI状态 */
   const updateUI = useCallback((updates: Partial<UIState>) => {
     setUIState(prev => ({ ...prev, ...updates }));
   }, []);
 
-  // 文件状态批量更新
+  /** 批量更新文件状态 */
   const updateFile = useCallback((updates: Partial<FileState>) => {
     setFileState(prev => ({ ...prev, ...updates }));
   }, []);
 
-  // ==================== 计算属性（使用useMemo优化） ====================
-  
-  // 检查是否为单个文本框场景
-  const isSingleTextBlock = useMemo(() => 
+  /** 检查是否为单个文本框场景 */
+  const isSingleTextBlock = useMemo(() =>
     coreState.blocks.length === 1 &&
     coreState.blocks[0].type === 'text' &&
     !coreState.blocks.some(block => block.type === 'image'),

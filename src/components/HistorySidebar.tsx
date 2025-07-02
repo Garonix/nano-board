@@ -1,6 +1,6 @@
 /**
- * 历史侧边栏组件（简化版）
- * 统一管理图片和文本文件的历史记录显示
+ * 历史文件侧边栏
+ * @description 统一管理图片和文本文件的历史记录显示
  */
 
 import React, { useRef, useEffect } from 'react';
@@ -8,20 +8,13 @@ import { LocalImageFileItem, LocalTextFileItem, FileHistoryLoadingState, History
 import { cn } from '@/lib/utils';
 
 interface HistorySidebarProps {
-  // 显示状态
   isVisible: boolean;
   onClose: () => void;
-
-  // 侧边栏类型
   sidebarType: HistorySidebarType;
   onSidebarTypeChange: (type: HistorySidebarType) => void;
-
-  // 文件数据
   imageFiles: LocalImageFileItem[];
   textFiles: LocalTextFileItem[];
   loadingState: FileHistoryLoadingState;
-
-  // 操作回调
   onRefresh: () => Promise<void>;
   onImageInsert: (imageSrc: string, altText: string) => void;
   onTextInsert: (fileName: string) => Promise<void>;
@@ -32,6 +25,9 @@ interface HistorySidebarProps {
 
 /**
  * 文件项组件
+ * @param file - 文件信息
+ * @param onInsert - 插入文件回调
+ * @param onDelete - 删除文件回调
  */
 const FileItem: React.FC<{
   file: LocalImageFileItem | LocalTextFileItem;

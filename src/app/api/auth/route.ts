@@ -1,13 +1,15 @@
 /**
- * 密码验证 API
- * 提供安全的密码验证服务
+ * 密码验证API
+ * @description 提供应用访问密码验证服务
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAppEnvironment } from '@/lib/env';
 
 /**
- * POST - 验证密码
+ * 验证访问密码
+ * @param request - 包含密码的请求体
+ * @returns 验证结果
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,16 +23,12 @@ export async function POST(request: NextRequest) {
     }
 
     const env = getAppEnvironment();
-    
-    // 如果未启用密码验证，直接返回成功
+
     if (!env.enablePasswordAuth) {
       return NextResponse.json({ success: true });
     }
 
-    // 获取正确的密码（优先使用自定义密码，否则使用默认密码）
     const correctPassword = env.accessPassword || 'nano2024';
-
-    // 验证密码
     const isValid = password === correctPassword;
 
     if (isValid) {
@@ -51,15 +49,15 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET - 获取密码验证状态
+ * 获取密码验证配置状态
+ * @returns 密码验证是否启用
  */
 export async function GET() {
   try {
     const env = getAppEnvironment();
-    
+
     return NextResponse.json({
       enablePasswordAuth: env.enablePasswordAuth,
-      // 不返回实际密码，只返回是否启用了密码验证
     });
   } catch (error) {
     console.error('获取验证状态失败:', error);

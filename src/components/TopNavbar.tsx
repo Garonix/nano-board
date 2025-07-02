@@ -1,6 +1,6 @@
 /**
- * 顶部导航栏组件
- * 包含应用标题、模式切换、预览切换、清空、历史记录等功能按钮
+ * 顶部导航栏
+ * @description 包含模式切换、预览切换、清空、历史记录等功能按钮
  */
 
 'use client';
@@ -9,6 +9,10 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { TopNavbarProps } from '@/types';
 
+/**
+ * 顶部导航栏组件
+ * @param props - 导航栏属性
+ */
 export const TopNavbar: React.FC<TopNavbarProps> = ({
   isMarkdownMode,
   showMarkdownPreview,
@@ -21,14 +25,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
 }) => {
   return (
     <div className="flex items-center px-4 md:px-6 py-3 md:py-4 bg-surface-elevated border border-border rounded-lg mx-4 mt-4 mb-2 flex-shrink-0 backdrop-blur-sm mobile-nav-compact shadow-sm hover:shadow-md transition-shadow duration-300">
-      {/* 左侧：应用标题 */}
       <div className="flex items-center gap-2 md:gap-3">
         <h1 className="text-lg md:text-xl font-bold text-foreground tracking-tight hidden sm:block">Nano Board</h1>
       </div>
 
-      {/* 中间：主要功能按钮组 - 居中对齐 */}
       <div className="flex-1 flex items-center justify-center gap-2 md:gap-3">
-        {/* 现代化模式切换按钮 - 固定宽度防止抖动 */}
         <button
           onClick={onToggleMarkdownMode}
           className={cn(
@@ -44,7 +45,6 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           </span>
         </button>
 
-        {/* 现代化Markdown预览切换按钮 - 固定宽度防止抖动 */}
         {isMarkdownMode && (
           <button
             onClick={onToggleMarkdownPreview}

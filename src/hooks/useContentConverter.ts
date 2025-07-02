@@ -1,25 +1,28 @@
 /**
- * 内容转换 Hook
- * 处理 blocks 和文本内容之间的转换
+ * 内容转换Hook
+ * @description 处理blocks和文本内容之间的双向转换
  */
 
 import { useCallback } from 'react';
 import { ContentBlock, ImageData } from '@/types';
 
-// 普通模式下用于分隔独立文本块的特殊标识符
+/** 普通模式文本块分隔符 */
 const TEXT_BLOCK_SEPARATOR = '{}';
 
 /**
- * 内容转换 Hook
- * @param isMarkdownMode 是否为 Markdown 模式
- * @returns 内容转换相关函数
+ * 内容转换Hook
+ * @param isMarkdownMode - 是否为Markdown模式
+ * @returns 内容转换函数集合
  */
 export const useContentConverter = (isMarkdownMode: boolean) => {
 
-  // 将blocks转换为文本内容（用于保存）
+  /**
+   * 将blocks转换为文本内容
+   * @param blocks - 内容块数组
+   * @returns 转换后的文本内容
+   */
   const blocksToContent = useCallback((blocks: ContentBlock[]): string => {
     if (isMarkdownMode) {
-      // Markdown 模式：保持原有逻辑，用换行符连接
       return blocks.map(block => {
         if (block.type === 'text') {
           return block.content;
@@ -28,7 +31,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
         }
       }).join('\n');
     } else {
-      // 普通模式：使用特殊分隔符来保持文本块的独立性
       return blocks.map(block => {
         if (block.type === 'text') {
           return block.content;
@@ -39,7 +41,11 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
     }
   }, [isMarkdownMode]);
 
-  // 将文本内容转换为blocks（用于加载）
+  /**
+   * 将文本内容转换为blocks
+   * @param content - 文本内容
+   * @returns 转换后的内容块数组
+   */
   const contentToBlocks = useCallback((content: string): ContentBlock[] => {
     if (!content.trim()) {
       return [{ id: '1', type: 'text', content: '' }];

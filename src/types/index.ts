@@ -1,37 +1,33 @@
 /**
- * 极简白板应用的类型定义
- * 支持普通模式和Markdown模式的独立数据结构
+ * 类型定义
+ * @description 白板应用的核心类型定义
  */
 
-// 白板模式类型
+/** 白板模式 */
 export type BoardMode = 'normal' | 'markdown';
 
-// 白板内容类型
+/** 白板内容 */
 export interface BoardContent {
   content: string;
   lastModified: Date;
 }
 
-// 内容块类型
+/** 内容块 */
 export interface ContentBlock {
   id: string;
   type: 'text' | 'image';
-  content: string; // 文本内容或图片URL
-  alt?: string; // 图片alt文本
+  content: string;
+  alt?: string;
 }
 
-// 图片数据类型
+/** 图片数据 */
 export interface ImageData {
   id: string;
   src: string;
   alt: string;
 }
 
-// 注意：ImageCacheItem 类型已移除，统一使用 LocalImageFileItem
-
-// 注意：TextHistoryItem 类型已移除，统一使用 LocalTextFileItem
-
-// 本地文件项类型（用于文件系统扫描）
+/** 本地文件项基础类型 */
 export interface LocalFileItem {
   id: string;
   fileName: string;
@@ -41,42 +37,42 @@ export interface LocalFileItem {
   type: 'image' | 'text';
 }
 
-// 图片缓存项类型
+/** 本地图片文件项 */
 export interface LocalImageFileItem extends LocalFileItem {
   type: 'image';
   extension: string;
-  thumbnailPath?: string; // 缩略图路径（可选）
+  thumbnailPath?: string;
 }
 
-// 本地文本文件项类型
+/** 本地文本文件项 */
 export interface LocalTextFileItem extends LocalFileItem {
   type: 'text';
   preview: string;
-  content?: string; // 完整内容（懒加载）
+  content?: string;
 }
 
-// 文件历史加载状态类型
+/** 文件历史加载状态 */
 export interface FileHistoryLoadingState {
   isLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
 }
 
-// 历史侧边栏类型
+/** 历史侧边栏类型 */
 export type HistorySidebarType = 'images' | 'texts';
 
-// 组件属性类型
+/** 组件基础属性 */
 export interface ComponentProps {
   className?: string;
   children?: React.ReactNode;
 }
 
-// 白板编辑器属性类型
+/** 白板编辑器属性 */
 export interface BoardEditorProps extends ComponentProps {
-  mode?: 'normal' | 'markdown'; // 可以扩展更多属性
+  mode?: 'normal' | 'markdown';
 }
 
-// 顶部导航栏组件属性类型
+/** 顶部导航栏属性 */
 export interface TopNavbarProps {
   isMarkdownMode: boolean;
   showMarkdownPreview: boolean;

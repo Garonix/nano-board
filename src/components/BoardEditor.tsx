@@ -1,6 +1,6 @@
 /**
- * Nano Board 编辑器组件
- * 支持普通模式和Markdown模式的双模式编辑器
+ * 双模式白板编辑器
+ * @description 支持普通模式和Markdown模式的编辑器组件
  */
 
 'use client';
@@ -14,9 +14,7 @@ import { cn } from '@/lib/utils';
 import { BoardEditorProps, ContentBlock } from '@/types';
 import { updateAllTextareasHeight, adjustTextareaHeight, autoScrollToNewContent, debouncedAutoScrollToNewContent } from '@/lib/textareaUtils';
 
-
-
-// 自定义 Hooks
+// Hooks
 import { useEditorState } from '@/hooks/useEditorState';
 import { useContentConverter } from '@/hooks/useContentConverter';
 import { useImageManager } from '@/hooks/useImageManager';
@@ -24,24 +22,23 @@ import { useScrollSync } from '@/hooks/useScrollSync';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useBlockSave } from '@/hooks/useBlockSave';
-
 import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
+import { useDialog } from '@/hooks/useDialog';
 
-// 组件
+// Components
 import { HistorySidebar } from './HistorySidebar';
 import { TopNavbar } from './TopNavbar';
 import { FileOperationsManager } from './FileOperationsManager';
 import { ConfirmDialog } from './Modal';
 import { SaveStatusContainer } from './SaveStatusIndicator';
-
 import { DragDropOverlay } from './DragDropOverlay';
 import { LoadingSpinner } from './LoadingSpinner';
 
-// 对话框Hook
-import { useDialog } from '@/hooks/useDialog';
-
+/**
+ * 双模式白板编辑器主组件
+ * @param className - 自定义样式类名
+ */
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
-  // 对话框状态管理
   const {
     isConfirmOpen,
     confirmOptions,
@@ -50,7 +47,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     handleConfirm,
   } = useDialog();
 
-  // 使用优化后的状态管理 Hook
   const {
     editorState,
     setIsMarkdownMode,
@@ -64,12 +60,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setLocalImageFiles,
     setLocalTextFiles,
     setFileHistoryLoadingState,
-    // 批量更新函数
     updateCore,
     updateUI
   } = useEditorState();
 
-  // 解构编辑器状态
   const {
     isMarkdownMode,
     showMarkdownPreview,
@@ -84,7 +78,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     fileHistoryLoadingState
   } = editorState;
 
-  // 双模式独立数据状态
   const [normalBlocks, setNormalBlocks] = useState<ContentBlock[]>([
     { id: '1', type: 'text', content: '' }
   ]);
@@ -92,18 +85,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     { id: '1', type: 'text', content: '' }
   ]);
 
-  // 内联组件状态 - 来自 NormalModeEditor
   const [hoveredTextBlockId, setHoveredTextBlockId] = useState<string | null>(null);
   const [copyingBlockId, setCopyingBlockId] = useState<string | null>(null);
-
-  // 内联组件状态 - 来自 MarkdownModeEditor
   const [isCopying, setIsCopying] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-
-  // 分块保存状态管理
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null);
 
-  // 模式切换函数
+  /** 切换编辑模式并保存偏好 */
   const toggleMarkdownMode = useCallback(() => {
     const newMode = !isMarkdownMode;
     updateCore({ isMarkdownMode: newMode });
@@ -111,6 +99,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     localStorage.setItem('nano-board-markdown-mode', newMode.toString());
   }, [isMarkdownMode, updateCore, updateUI]);
 
+  /** 切换Markdown预览并保存偏好 */
   const toggleMarkdownPreview = useCallback(() => {
     const newPreview = !showMarkdownPreview;
     setShowMarkdownPreview(newPreview);
@@ -141,9 +130,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setSavingBlockId
   });
 
-  // 复制文本内容
+  /**
+   * 复制文本块内容到剪贴板
+   * @param content - 要复制的文本内容
+   * @param blockId - 文本块ID，用于显示复制状态
+   */
   const handleCopyText = useCallback(async (content: string, blockId: string) => {
-    // 检查是否支持 Clipboard API
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
       alert('复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用');
       return;
@@ -160,9 +152,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   }, []);
 
-  // 复制Markdown内容
+  /**
+   * 复制完整Markdown内容到剪贴板
+   */
   const handleCopyMarkdown = useCallback(async () => {
-    // 检查是否支持 Clipboard API
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
       alert('复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用');
       return;
@@ -180,7 +173,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   }, [markdownConverter, markdownBlocks]);
 
-  // Markdown组件配置
+  /** Markdown渲染组件配置 */
   const markdownComponents = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code(props: any) {
@@ -210,7 +203,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       );
     },
 
-    // 现代化图片组件 - 优化显示，不显示alt文本
+    /** 图片组件 - 优化显示效果 */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     img(props: any) {
       const { src, alt, ...rest } = props;

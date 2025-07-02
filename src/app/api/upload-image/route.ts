@@ -1,13 +1,12 @@
 /**
- * 图片上传API路由
- * 处理图片文件的保存和管理
+ * 图片上传API
+ * @description 处理图片文件的上传、保存和管理
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-// 图片存储目录
 const PICS_DIR = path.join(process.cwd(), 'data', 'pics');
 
 /**
@@ -22,13 +21,12 @@ async function ensurePicsDir(): Promise<void> {
 }
 
 /**
- * 获取当前缓存图片数量
- * @returns 图片数量
+ * 获取当前图片数量
+ * @returns 图片文件数量
  */
 async function getCurrentImageCount(): Promise<number> {
   try {
     const files = await fs.readdir(PICS_DIR);
-    // 只计算图片文件
     const imageFiles = files.filter(file => {
       const ext = path.extname(file).toLowerCase();
       return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
@@ -40,9 +38,9 @@ async function getCurrentImageCount(): Promise<number> {
 }
 
 /**
- * 生成规范化的文件名 - 按照 yy-mm-dd-index 格式
- * @param extension 文件扩展名
- * @returns 规范化文件名
+ * 生成标准化文件名
+ * @param extension - 文件扩展名
+ * @returns 格式为yy-mm-dd-index的文件名
  */
 async function generateStandardizedFileName(extension: string): Promise<string> {
   const now = new Date();
