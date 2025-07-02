@@ -128,7 +128,6 @@ body {
   letter-spacing: -0.01em;
   margin: 0;
   padding: 0;
-  overflow: hidden;
   /* 现代化文本渲染优化 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -139,7 +138,6 @@ body {
 
 html, body, #__next {
   height: 100%;
-  overflow: hidden;
 }
 
 /* 现代化选择样式 */

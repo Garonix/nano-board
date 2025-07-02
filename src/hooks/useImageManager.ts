@@ -9,6 +9,7 @@ import {
   isImageFile,
   fileToBase64
 } from '@/lib/utils';
+import { autoScrollToNewContent } from '@/lib/textareaUtils';
 
 /**
  * 图片管理 Hook（简化版）
@@ -69,6 +70,10 @@ export const useImageManager = (
       textarea.setSelectionRange(newCursorPos, newCursorPos);
       textarea.focus();
       console.log('光标已设置到位置:', newCursorPos);
+
+      // Markdown模式下滚动到textarea的光标位置
+      // 由于是在textarea内部，我们滚动到textarea元素本身
+      autoScrollToNewContent('markdown-editor', 100);
     }, 0);
 
     // Markdown模式图片插入后立即触发保存
@@ -113,6 +118,9 @@ export const useImageManager = (
 
       return newBlocks;
     });
+
+    // 自动滚动到新插入的图片
+    autoScrollToNewContent(imageId, 200);
 
     // 图片插入后立即触发保存
     if (saveOnImageInsert) {

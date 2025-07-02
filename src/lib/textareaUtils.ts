@@ -1,6 +1,6 @@
 /**
  * 文本框工具函数
- * 处理文本框高度自适应等功能
+ * 处理文本框高度自适应、自动滚动等功能
  */
 
 /**
@@ -53,4 +53,81 @@ export const updateAllTextareasHeight = (isSingleTextBlock: boolean) => {
     const textareaElement = textarea as HTMLTextAreaElement;
     adjustTextareaHeight(textareaElement, textareaElement.value, isSingleTextBlock);
   });
+};
+
+/**
+ * 防抖函数 - 用于优化自动滚动性能
+ * @param func 要防抖的函数
+ * @param delay 防抖延迟时间（毫秒）
+ * @returns 防抖后的函数
+ */
+const debounce = (func: (elementId: string, delay?: number) => void, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return (elementId: string, scrollDelay?: number) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(elementId, scrollDelay), delay);
+  };
+};
+
+
+
+/**
+ * 自动滚动到新增内容 - 普通模式专用
+ * 直接滚动到页面底部，确保新增内容可见
+ * @param elementId 新增元素的ID或data-block-id（保留参数用于兼容性）
+ * @param delay 延迟时间（毫秒），用于等待DOM更新完成
+ */
+export const autoScrollToNewContent = (elementId: string, delay: number = 100) => {
+  console.log(`autoScrollToNewContent 被调用，元素ID: ${elementId}, 延迟: ${delay}ms`);
+  setTimeout(() => {
+    try {
+      console.log(`开始执行滚动，当前页面高度: ${document.documentElement.scrollHeight}, 当前滚动位置: ${window.scrollY}`);
+      // 直接滚动到页面底部
+      scrollToBottom(true);
+      console.log(`自动滚动到底部完成，触发元素: ${elementId}`);
+    } catch (error) {
+      console.error('自动滚动出错:', error);
+    }
+  }, delay);
+};
+
+/**
+ * 防抖版本的自动滚动函数 - 避免频繁触发
+ * 适用于连续输入或快速添加内容的场景
+ */
+export const debouncedAutoScrollToNewContent = debounce(autoScrollToNewContent, 150);
+
+/**
+ * 滚动到页面底部 - 用于添加新文本框后的滚动
+ * @param smooth 是否使用平滑滚动
+ */
+export const scrollToBottom = (smooth: boolean = true) => {
+  try {
+    console.log(`scrollToBottom 被调用，smooth: ${smooth}`);
+
+    // 查找普通模式的滚动容器
+    const normalModeContainer = document.querySelector('.overflow-auto') as HTMLElement;
+
+    if (normalModeContainer) {
+      console.log(`找到普通模式滚动容器，容器高度: ${normalModeContainer.scrollHeight}, 当前滚动位置: ${normalModeContainer.scrollTop}`);
+      normalModeContainer.scrollTo({
+        top: normalModeContainer.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+      console.log(`滚动命令已发送到容器底部: ${normalModeContainer.scrollHeight}`);
+    } else {
+      // 降级到页面级别滚动
+      console.log(`未找到滚动容器，使用页面级别滚动`);
+      console.log(`页面总高度: ${document.documentElement.scrollHeight}, 当前滚动位置: ${window.scrollY}`);
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+      console.log(`滚动命令已发送到页面底部: ${document.documentElement.scrollHeight}`);
+    }
+  } catch (error) {
+    console.error('滚动到底部出错:', error);
+    // 降级处理
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  }
 };

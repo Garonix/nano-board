@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { ContentBlock } from '@/types';
 import { useTextManager } from '@/hooks/useTextManager';
 import { useFileHistoryManager } from '@/hooks/useFileHistoryManager';
+import { autoScrollToNewContent } from '@/lib/textareaUtils';
 
 /**
  * 文件操作管理器组件的属性接口
@@ -209,6 +210,9 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
 
           return newBlocks;
         });
+
+        // 自动滚动到新插入的图片缓存
+        autoScrollToNewContent(imageId, 200);
 
         // 图片插入后立即触发保存
         if (saveOnImageInsert) {

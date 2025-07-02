@@ -12,7 +12,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '@/lib/utils';
 import { BoardEditorProps, ContentBlock } from '@/types';
-import { updateAllTextareasHeight, adjustTextareaHeight } from '@/lib/textareaUtils';
+import { updateAllTextareasHeight, adjustTextareaHeight, autoScrollToNewContent, debouncedAutoScrollToNewContent } from '@/lib/textareaUtils';
 
 
 
@@ -399,7 +399,19 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const deleteNormalBlock = useCallback((blockId: string) => {
     setNormalBlocks(prev => {
       const filtered = prev.filter(block => block.id !== blockId);
-      return filtered.length === 0 ? [{ id: Date.now().toString(), type: 'text', content: '' }] : filtered;
+      if (filtered.length === 0) {
+        // 如果删除后没有块了，创建新的空文本框
+        const newBlockId = Date.now().toString();
+        const newBlock: ContentBlock = { id: newBlockId, type: 'text', content: '' };
+
+        // 自动滚动到新创建的文本框
+        setTimeout(() => {
+          autoScrollToNewContent(newBlockId, 100);
+        }, 0);
+
+        return [newBlock];
+      }
+      return filtered;
     });
   }, []);
 
@@ -419,6 +431,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       return newBlocks;
     });
     setFocusedBlockId(newBlock.id);
+
+    // 自动滚动到新添加的文本框
+    autoScrollToNewContent(newBlock.id, 150);
   }, [setFocusedBlockId]);
 
 
@@ -475,6 +490,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
           block.id === emptyTextBlock.id ? { ...block, content } : block
         ));
         setFocusedBlockId(emptyTextBlock.id);
+        // 自动滚动到填入内容的文本框
+        autoScrollToNewContent(emptyTextBlock.id, 100);
       } else {
         // 如果不存在空文本框，创建新的文本框
         const newTextBlock: ContentBlock = {
@@ -484,6 +501,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         };
         setNormalBlocks(prev => [...prev, newTextBlock]);
         setFocusedBlockId(newTextBlock.id);
+        // 自动滚动到新创建的文本框
+        autoScrollToNewContent(newTextBlock.id, 150);
       }
     }
   }, [isMarkdownMode, insertTextAtCursor, normalBlocks, setFocusedBlockId]);
@@ -824,6 +843,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                   // 智能调整高度
                                   const target = e.target as HTMLTextAreaElement;
                                   adjustTextareaHeight(target, newContent, isSingleNormalTextBlock);
+
+                                  // 如果内容增加导致高度变化，使用防抖自动滚动确保内容可见
+                                  if (newContent.length > 0) {
+                                    debouncedAutoScrollToNewContent(block.id, 50);
+                                  }
                                 }}
                                 onPaste={handleImagePaste}
                                 onKeyDown={(e) => handleKeyDown(e, block.id)}
@@ -969,6 +993,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                       onMouseLeave={() => setIsHovered(false)}
                     >
                       <textarea
+                        id="markdown-editor"
                         ref={editorRef}
                         data-markdown-editor="true"
                         value={markdownConverter.blocksToContent(markdownBlocks)}
