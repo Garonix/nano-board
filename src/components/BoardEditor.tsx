@@ -513,6 +513,11 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         setFocusedBlockId(emptyTextBlock.id);
         // 自动滚动到填入内容的文本框
         autoScrollToNewContent(emptyTextBlock.id, 100);
+
+        // 触发自动保存
+        setTimeout(() => {
+          normalBlockSave.saveOnImageInsert(emptyTextBlock.id);
+        }, 100);
       } else {
         // 如果不存在空文本框，创建新的文本框
         const newTextBlock: ContentBlock = {
@@ -524,9 +529,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         setFocusedBlockId(newTextBlock.id);
         // 自动滚动到新创建的文本框
         autoScrollToNewContent(newTextBlock.id, 150);
+
+        // 触发自动保存
+        setTimeout(() => {
+          normalBlockSave.saveOnImageInsert(newTextBlock.id);
+        }, 100);
       }
     }
-  }, [isMarkdownMode, insertTextAtCursor, normalBlocks, setFocusedBlockId]);
+  }, [isMarkdownMode, insertTextAtCursor, normalBlocks, setFocusedBlockId, normalBlockSave]);
 
 
 
@@ -562,7 +572,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 文本管理 Hook
   const {
     handleTextPaste,
-    handleTextDrop
+    handleTextDrop,
+    handleTextDragDrop
   } = useTextManager(
     insertTextContentAdapted,
     refreshFileHistory,
@@ -594,25 +605,42 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   );
 
   // 组合拖拽处理函数 - 同时支持文本、图片和文件
-  const handleCombinedDrop = useCallback(async (files: File[]) => {
-    // 创建FileList对象以兼容useFileManager
-    const fileList = {
-      length: files.length,
-      item: (index: number) => files[index] || null,
-      [Symbol.iterator]: function* () {
-        for (let i = 0; i < files.length; i++) {
-          yield files[i];
+  const handleCombinedDrop = useCallback(async (files: File[], textContent?: string) => {
+    // 如果有文本内容，优先处理文本拖拽
+    if (textContent && textContent.trim()) {
+      // 创建模拟的拖拽事件来处理文本内容
+      const mockEvent = {
+        dataTransfer: {
+          getData: (type: string) => type === 'text/plain' ? textContent : '',
+          files: { length: 0 } as FileList
         }
-      }
-    } as FileList;
+      } as React.DragEvent;
 
-    // 同时处理文本、图片和文件拖拽
-    await Promise.all([
-      handleTextDrop(files),   // useTextManager期望File[]
-      handleImageDrop(files),  // useImageManager期望File[]
-      handleFileDrop(fileList) // useFileManager期望FileList
-    ]);
-  }, [handleTextDrop, handleImageDrop, handleFileDrop]);
+      await handleTextDragDrop(mockEvent);
+      return;
+    }
+
+    // 如果没有文本内容，处理文件拖拽
+    if (files.length > 0) {
+      // 创建FileList对象以兼容useFileManager
+      const fileList = {
+        length: files.length,
+        item: (index: number) => files[index] || null,
+        [Symbol.iterator]: function* () {
+          for (let i = 0; i < files.length; i++) {
+            yield files[i];
+          }
+        }
+      } as FileList;
+
+      // 同时处理文本文件、图片和其他文件拖拽
+      await Promise.all([
+        handleTextDrop(files),   // useTextManager期望File[]
+        handleImageDrop(files),  // useImageManager期望File[]
+        handleFileDrop(fileList) // useFileManager期望FileList
+      ]);
+    }
+  }, [handleTextDrop, handleImageDrop, handleFileDrop, handleTextDragDrop]);
 
   // 组合粘贴处理函数 - 同时支持文本和图片粘贴
   const handleCombinedPaste = useCallback(async (e: React.ClipboardEvent) => {
@@ -624,6 +652,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       await handleImagePaste(e);
     } else {
       // 如果没有图片，处理文本粘贴
+      // 在普通模式下，文本粘贴会通过useTextManager创建新的文本框
       await handleTextPaste(e);
     }
   }, [handleImagePaste, handleTextPaste]);

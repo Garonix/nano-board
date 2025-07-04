@@ -43,12 +43,12 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({
 
         {/* 简洁的提示文字 */}
         <div className="text-xl font-bold text-primary-700 mb-3">
-          拖拽图片到这里
+          拖拽内容到这里
         </div>
 
         {/* 支持格式说明 */}
         <div className="text-sm text-primary-600 bg-white/90 px-4 py-2 rounded-full">
-          支持 JPG、PNG、GIF、WebP 格式
+          支持图片、文本内容、文本文件等
         </div>
       </div>
     </div>

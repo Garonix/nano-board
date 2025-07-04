@@ -28,6 +28,9 @@ export const useTextManager = (
   setIsUploadingText?: (uploading: boolean) => void
 ) => {
 
+  /** 短文本长度阈值 - 超过此长度的文本将保存为文件 */
+  const SHORT_TEXT_THRESHOLD = 500;
+
   /**
    * 保存文本内容到独立文件
    * @param content 文本内容
@@ -81,8 +84,8 @@ export const useTextManager = (
     const textContent = e.clipboardData.getData('text/plain');
 
     if (textContent && textContent.trim()) {
-      // 如果文本内容较长（超过500字符），自动保存为文件
-      if (textContent.length > 500) {
+      // 如果文本内容较长，自动保存为文件
+      if (textContent.length > SHORT_TEXT_THRESHOLD) {
         e.preventDefault();
 
         if (setIsUploadingText) {
@@ -99,16 +102,62 @@ export const useTextManager = (
             setIsUploadingText(false);
           }
         }
+      } else {
+        // 短文本：阻止默认粘贴行为，通过回调函数在白板中创建文本框
+        e.preventDefault();
+
+        if (onInsertTextContent) {
+          onInsertTextContent(textContent);
+        }
       }
-      // 短文本不做特殊处理，让默认的粘贴行为处理
     }
-  }, [saveTextToFile, refreshFileHistory, setIsUploadingText]);
+  }, [saveTextToFile, refreshFileHistory, setIsUploadingText, onInsertTextContent]);
+
+  /**
+   * 处理文本拖拽事件（支持文本内容和文本文件）
+   * @param e 拖拽事件对象
+   */
+  const handleTextDragDrop = useCallback(async (e: React.DragEvent) => {
+    // 首先检查是否有文本内容被拖拽
+    const textContent = e.dataTransfer.getData('text/plain');
+
+    if (textContent && textContent.trim()) {
+      // 处理拖拽的文本内容
+      if (textContent.length > SHORT_TEXT_THRESHOLD) {
+        // 长文本保存为文件
+        if (setIsUploadingText) {
+          setIsUploadingText(true);
+        }
+
+        try {
+          const success = await saveTextToFile(textContent);
+          if (success && refreshFileHistory) {
+            await refreshFileHistory();
+          }
+        } finally {
+          if (setIsUploadingText) {
+            setIsUploadingText(false);
+          }
+        }
+      } else {
+        // 短文本在白板中创建文本框
+        if (onInsertTextContent) {
+          onInsertTextContent(textContent);
+        }
+      }
+      return;
+    }
+
+    // 如果没有文本内容，检查是否有文本文件
+    const files = Array.from(e.dataTransfer.files);
+    await handleTextFileDrop(files);
+  }, [saveTextToFile, refreshFileHistory, setIsUploadingText, onInsertTextContent]);
 
   /**
    * 处理文本文件拖拽上传
    * @param files 文件列表
    */
-  const handleTextDrop = useCallback(async (files: FileList | File[]) => {
+  const handleTextFileDrop = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.isArray(files) ? files : Array.from(files);
     const textFiles = fileArray.filter(isTextFile);
 
@@ -143,11 +192,21 @@ export const useTextManager = (
     }
   }, [saveTextToFile, refreshFileHistory, setIsUploadingText]);
 
+  /**
+   * 处理文本文件拖拽上传（向后兼容）
+   * @param files 文件列表
+   */
+  const handleTextDrop = useCallback(async (files: FileList | File[]) => {
+    await handleTextFileDrop(files);
+  }, [handleTextFileDrop]);
+
   return {
     saveTextToFile,
     uploadTextFile,
     handleTextPaste,
     handleTextDrop,
+    handleTextDragDrop,
+    handleTextFileDrop,
     isTextFile
   };
 };

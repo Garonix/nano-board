@@ -33,7 +33,7 @@ export const SaveStatusIndicator: React.FC<SaveStatusIndicatorProps> = ({
     <div
       className={cn(
         // 基础样式
-        'absolute bottom-2 right-2 z-10',
+        'absolute bottom-2 right-0.5 z-10',
         // 背景和边框
         'bg-green-100 border border-green-300 rounded-md',
         // 内边距和字体

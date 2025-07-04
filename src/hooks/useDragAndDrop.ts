@@ -1,6 +1,6 @@
 /**
  * 拖拽处理 Hook
- * 处理图片拖拽上传功能
+ * 处理图片、文本和文件拖拽上传功能
  */
 
 import { useCallback, useRef } from 'react';
@@ -9,13 +9,13 @@ import { useCallback, useRef } from 'react';
  * 拖拽处理 Hook
  * @param isDragOver 是否正在拖拽
  * @param setIsDragOver 设置拖拽状态函数
- * @param handleImageDrop 处理图片拖拽函数
+ * @param handleCombinedDrop 处理组合拖拽函数（支持文件和文本）
  * @returns 拖拽事件处理函数
  */
 export const useDragAndDrop = (
   isDragOver: boolean,
   setIsDragOver: (dragOver: boolean) => void,
-  handleImageDrop: (files: File[]) => Promise<void>
+  handleCombinedDrop: (files: File[], textContent?: string) => Promise<void>
 ) => {
   // 拖拽状态管理 - 修复闪屏问题
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,9 +57,13 @@ export const useDragAndDrop = (
     }
     setIsDragOver(false);
 
+    // 获取拖拽的文件和文本内容
     const files = Array.from(e.dataTransfer.files);
-    await handleImageDrop(files);
-  }, [setIsDragOver, handleImageDrop]);
+    const textContent = e.dataTransfer.getData('text/plain');
+
+    // 调用组合处理函数，同时传递文件和文本内容
+    await handleCombinedDrop(files, textContent);
+  }, [setIsDragOver, handleCombinedDrop]);
 
   // 清理函数
   const cleanup = useCallback(() => {
