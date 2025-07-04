@@ -10,6 +10,7 @@ import {
   HistorySidebarType,
   LocalImageFileItem,
   LocalTextFileItem,
+  LocalGeneralFileItem,
   FileHistoryLoadingState
 } from '@/types';
 
@@ -24,6 +25,7 @@ interface CoreState {
 interface UIState {
   isLoading: boolean;
   isUploadingImage: boolean;
+  isUploadingFile: boolean;  // 新增文件上传状态
   isDragOver: boolean;
   showMarkdownPreview: boolean;
   showHistorySidebar: boolean;
@@ -34,6 +36,7 @@ interface UIState {
 interface FileState {
   localImageFiles: LocalImageFileItem[];
   localTextFiles: LocalTextFileItem[];
+  localGeneralFiles: LocalGeneralFileItem[];  // 新增通用文件列表
   fileHistoryLoadingState: FileHistoryLoadingState;
 }
 
@@ -53,6 +56,7 @@ export const useEditorState = () => {
   const [uiState, setUIState] = useState<UIState>({
     isLoading: true,
     isUploadingImage: false,
+    isUploadingFile: false,  // 初始化文件上传状态
     isDragOver: false,
     showMarkdownPreview: false,
     showHistorySidebar: false,
@@ -62,6 +66,7 @@ export const useEditorState = () => {
   const [fileState, setFileState] = useState<FileState>({
     localImageFiles: [],
     localTextFiles: [],
+    localGeneralFiles: [],  // 初始化通用文件列表
     fileHistoryLoadingState: {
       isLoading: false,
       error: null,
@@ -88,7 +93,7 @@ export const useEditorState = () => {
   const isSingleTextBlock = useMemo(() =>
     coreState.blocks.length === 1 &&
     coreState.blocks[0].type === 'text' &&
-    !coreState.blocks.some(block => block.type === 'image'),
+    !coreState.blocks.some(block => block.type === 'image' || block.type === 'file'),
     [coreState.blocks]
   );
 
@@ -230,6 +235,10 @@ export const useEditorState = () => {
     updateUI({ isUploadingImage });
   }, [updateUI]);
 
+  const setIsUploadingFile = useCallback((isUploadingFile: boolean) => {
+    updateUI({ isUploadingFile });
+  }, [updateUI]);
+
   const setIsDragOver = useCallback((isDragOver: boolean) => {
     updateUI({ isDragOver });
   }, [updateUI]);
@@ -254,6 +263,10 @@ export const useEditorState = () => {
     updateFile({ localTextFiles });
   }, [updateFile]);
 
+  const setLocalGeneralFiles = useCallback((localGeneralFiles: LocalGeneralFileItem[]) => {
+    updateFile({ localGeneralFiles });
+  }, [updateFile]);
+
   const setFileHistoryLoadingState = useCallback((fileHistoryLoadingState: FileHistoryLoadingState) => {
     updateFile({ fileHistoryLoadingState });
   }, [updateFile]);
@@ -276,12 +289,14 @@ export const useEditorState = () => {
     setShowMarkdownPreview,
     setIsLoading,
     setIsUploadingImage,
+    setIsUploadingFile,
     setIsDragOver,
     setFocusedBlockId,
     setShowHistorySidebar,
     setHistorySidebarType,
     setLocalImageFiles,
     setLocalTextFiles,
+    setLocalGeneralFiles,
     setFileHistoryLoadingState,
 
     // 业务逻辑函数

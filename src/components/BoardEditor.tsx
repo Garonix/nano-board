@@ -13,11 +13,13 @@ import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '@/lib/utils';
 import { BoardEditorProps, ContentBlock } from '@/types';
 import { updateAllTextareasHeight, adjustTextareaHeight, autoScrollToNewContent, debouncedAutoScrollToNewContent } from '@/lib/textareaUtils';
+import { FileBlock } from '@/components/FileBlock';
 
 // Hooks
 import { useEditorState } from '@/hooks/useEditorState';
 import { useContentConverter } from '@/hooks/useContentConverter';
 import { useImageManager } from '@/hooks/useImageManager';
+import { useFileManager } from '@/hooks/useFileManager';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
@@ -45,6 +47,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     confirm,
     closeConfirm,
     handleConfirm,
+    alert,
   } = useDialog();
 
   const {
@@ -53,12 +56,15 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setShowMarkdownPreview,
     setIsLoading,
     setIsUploadingImage,
+    setIsUploadingFile,
     setIsDragOver,
     setFocusedBlockId,
     setShowHistorySidebar,
     setHistorySidebarType,
     setLocalImageFiles,
     setLocalTextFiles,
+    setLocalGeneralFiles,
+
     setFileHistoryLoadingState,
     updateCore,
     updateUI
@@ -69,12 +75,15 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     showMarkdownPreview,
     isLoading,
     isUploadingImage,
+
     isDragOver,
     focusedBlockId,
     showHistorySidebar,
     historySidebarType,
     localImageFiles,
     localTextFiles,
+    localGeneralFiles,
+
     fileHistoryLoadingState
   } = editorState;
 
@@ -112,7 +121,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
   const isSingleNormalTextBlock = normalBlocks.length === 1 &&
                                   normalBlocks[0].type === 'text' &&
-                                  !normalBlocks.some(block => block.type === 'image');
+                                  !normalBlocks.some(block => block.type === 'image' || block.type === 'file');
 
   // 内容转换器
   const normalConverter = useContentConverter(false);
@@ -137,7 +146,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
    */
   const handleCopyText = useCallback(async (content: string, blockId: string) => {
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      alert('复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用');
+      await alert({
+        message: '复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用',
+        type: 'warning'
+      });
       return;
     }
 
@@ -147,7 +159,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       setTimeout(() => setCopyingBlockId(null), 1000);
     } catch (error) {
       console.error('复制失败:', error);
-      alert('复制失败，请检查浏览器权限设置');
+      await alert({
+        message: '复制失败，请检查浏览器权限设置',
+        type: 'error'
+      });
       setCopyingBlockId(null);
     }
   }, []);
@@ -157,7 +172,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
    */
   const handleCopyMarkdown = useCallback(async () => {
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      alert('复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用');
+      await alert({
+        message: '复制功能需要HTTPS环境或localhost才能使用，请在安全环境下访问此应用',
+        type: 'warning'
+      });
       return;
     }
 
@@ -168,7 +186,10 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       setTimeout(() => setIsCopying(false), 1000);
     } catch (error) {
       console.error('复制失败:', error);
-      alert('复制失败，请检查浏览器权限设置');
+      await alert({
+        message: '复制失败，请检查浏览器权限设置',
+        type: 'error'
+      });
       setIsCopying(false);
     }
   }, [markdownConverter, markdownBlocks]);
@@ -359,6 +380,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   } = useFileHistoryManager(
     setLocalImageFiles,
     setLocalTextFiles,
+    setLocalGeneralFiles,
     setFileHistoryLoadingState
   );
 
@@ -386,7 +408,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     ));
   }, []);
 
-  // 删除块函数
+  // 删除块函数（添加删除后保存机制）
   const deleteNormalBlock = useCallback((blockId: string) => {
     setNormalBlocks(prev => {
       const filtered = prev.filter(block => block.id !== blockId);
@@ -404,7 +426,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       }
       return filtered;
     });
-  }, []);
+
+    // 删除后立即触发保存
+    setTimeout(async () => {
+      await normalBlockSave.saveOnBlockDelete(blockId);
+    }, 100);
+  }, [normalBlockSave]);
 
 
 
@@ -514,6 +541,21 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     isMarkdownMode ? markdownBlockSave.saveOnImageInsert : normalBlockSave.saveOnImageInsert
   );
 
+  // 文件管理 Hook
+  const {
+    handleFileDrop,
+    handleFileDownload,
+    insertFile
+  } = useFileManager(
+    setCurrentBlocks,
+    isMarkdownMode,
+    setIsUploadingFile,
+    refreshFileHistory,
+    // 传递文件保存函数，文件插入后立即保存
+    isMarkdownMode ? markdownBlockSave.saveOnImageInsert : normalBlockSave.saveOnImageInsert,
+    alert
+  );
+
   // 滚动同步 Hook - 使用改进版本
   const {
     editorRef,
@@ -538,11 +580,31 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setCurrentBlocks
   );
 
+  // 组合拖拽处理函数 - 同时支持图片和文件
+  const handleCombinedDrop = useCallback(async (files: File[]) => {
+    // 创建FileList对象以兼容useFileManager
+    const fileList = {
+      length: files.length,
+      item: (index: number) => files[index] || null,
+      [Symbol.iterator]: function* () {
+        for (let i = 0; i < files.length; i++) {
+          yield files[i];
+        }
+      }
+    } as FileList;
+
+    // 同时处理图片和文件拖拽
+    await Promise.all([
+      handleImageDrop(files),  // useImageManager期望File[]
+      handleFileDrop(fileList) // useFileManager期望FileList
+    ]);
+  }, [handleImageDrop, handleFileDrop]);
+
   // 拖拽处理 Hook
   const { handleDragOver, handleDragLeave, handleDrop, cleanup: cleanupDragAndDrop } = useDragAndDrop(
     isDragOver,
     setIsDragOver,
-    handleImageDrop
+    handleCombinedDrop
   );
 
   // 双模式数据持久化
@@ -690,7 +752,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 注意：只在普通模式下或者普通模式状态变化时才更新，避免影响 Markdown 模式的固定高度
   useEffect(() => {
     // 只有在普通模式下，或者普通模式的单文本框状态发生变化时才更新
-    if (!isMarkdownMode || isSingleNormalTextBlock !== (normalBlocks.length === 1 && normalBlocks[0].type === 'text' && !normalBlocks.some(block => block.type === 'image'))) {
+    if (!isMarkdownMode || isSingleNormalTextBlock !== (normalBlocks.length === 1 && normalBlocks[0].type === 'text' && !normalBlocks.some(block => block.type === 'image' || block.type === 'file'))) {
       updateAllTextareasHeight(isSingleNormalTextBlock);
     }
   }, [isMarkdownMode, isSingleNormalTextBlock, normalBlocks]); // 依赖模式和普通模式的状态
@@ -710,6 +772,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       onCloseHistorySidebar={() => setShowHistorySidebar(false)}
       onRefreshFileHistory={refreshFileHistory}
       saveOnImageInsert={isMarkdownMode ? markdownBlockSave.saveOnImageInsert : normalBlockSave.saveOnImageInsert}
+      _saveOnBlockDelete={isMarkdownMode ? markdownBlockSave.saveOnBlockDelete : normalBlockSave.saveOnBlockDelete}
     >
       {(fileOperations) => (
         <div className={cn('h-screen flex flex-col bg-white', className)}>
@@ -886,14 +949,14 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                               />
                             </SaveStatusContainer>
                           </div>
-                        ) : (
+                        ) : block.type === 'image' ? (
                           <div className="w-full text-center my-4">
                             {/* 图片容器 - 限制最大高度300px，修复删除按钮定位 */}
                             <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full group">
                               {/* 现代化图片删除按钮 - 精确定位在图片元素右上角 */}
                               <button
                                 onClick={() => deleteNormalBlock(block.id)}
-                                className="absolute top-3 right-3 z-10 w-8 h-8 bg-error-500 hover:bg-error-600 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                className="absolute top-3 right-3 z-10 w-5 h-5 bg-error-500 hover:bg-error-600 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl"
                                 title="删除图片"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -932,16 +995,22 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                               </div>
                             </div>
                           </div>
-                        )}
+                        ) : block.type === 'file' ? (
+                          <FileBlock
+                            block={block}
+                            onDelete={deleteNormalBlock}
+                            onDownload={handleFileDownload}
+                          />
+                        ) : null}
 
                         {/* 现代化新建文本框按钮 - 悬停时显示，紧贴元素边缘 */}
-                        {(block.type === 'image' || (block.type === 'text' && block.content.trim())) && (
+                        {(block.type === 'image' || block.type === 'file' || (block.type === 'text' && block.content.trim())) && (
                           <div className="relative">
                             <button
                               onClick={() => addNormalTextBlockAfter(block.id)}
                               className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg hover:scale-110 opacity-0 group-hover:opacity-100"
                               style={{
-                                top: block.type === 'text' ? '-6px' : '-23px' // 紧贴文本框下边框或图片容器下边缘
+                                top: block.type === 'text' ? '-6px' : '-23px' // 紧贴文本框下边框或图片/文件容器下边缘
                               }}
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -995,7 +1064,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                         value={markdownConverter.blocksToContent(markdownBlocks)}
                         onChange={(e) => {
                           const newBlocks = markdownConverter.contentToBlocks(e.target.value);
+                          const previousLength = markdownConverter.blocksToContent(markdownBlocks).length;
+                          const currentLength = e.target.value.length;
+
                           setMarkdownBlocks(newBlocks);
+
+                          // 检测是否为删除操作（内容长度减少）
+                          if (currentLength < previousLength) {
+                            // 删除操作立即触发保存
+                            setTimeout(async () => {
+                              await markdownBlockSave.saveOnBlockDelete('markdown-editor');
+                            }, 100);
+                          }
 
                           // 内容变化时重置滚动同步状态，确保同步准确性
                           // 使用 setTimeout 确保 DOM 更新完成后再重置
@@ -1078,6 +1158,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             onSidebarTypeChange={setHistorySidebarType}
             imageFiles={localImageFiles}
             textFiles={localTextFiles}
+            generalFiles={localGeneralFiles}
             loadingState={fileHistoryLoadingState}
             onRefresh={refreshFileHistory}
             onImageInsert={(imageSrc: string, altText: string) => {
@@ -1088,8 +1169,35 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               fileOperations.handleInsertLocalImageFile(imageSrc, fileName);
             }}
             onTextInsert={fileOperations.handleRestoreLocalTextFile}
-            onFileDelete={fileOperations.handleDeleteLocalFile}
-            onClearAll={fileOperations.handleClearAllLocalFiles}
+            onFileInsert={async (fileName: string) => {
+              // 从本地文件列表中找到文件信息
+              const fileInfo = localGeneralFiles.find(f => f.fileName === fileName);
+              if (fileInfo) {
+                await insertFile(
+                  fileInfo.fileName,
+                  fileInfo.size,
+                  fileInfo.mimeType,
+                  fileInfo.extension,
+                  fileInfo.downloadPath
+                );
+              }
+            }}
+            onFileDelete={async (fileName: string, type: 'image' | 'text' | 'file') => {
+              if (type === 'file') {
+                // 处理文件删除 - 需要实现文件删除逻辑
+                console.log('删除文件:', fileName);
+              } else {
+                await fileOperations.handleDeleteLocalFile(fileName, type);
+              }
+            }}
+            onClearAll={async (type: 'image' | 'text' | 'file') => {
+              if (type === 'file') {
+                // 处理清空所有文件 - 需要实现清空逻辑
+                console.log('清空所有文件');
+              } else {
+                await fileOperations.handleClearAllLocalFiles(type);
+              }
+            }}
             onConfirm={handleConfirmDialog}
           />
 

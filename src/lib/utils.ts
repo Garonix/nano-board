@@ -61,6 +61,38 @@ export function fileToBase64(file: File): Promise<string> {
 }
 
 /**
+ * 格式化文件大小显示
+ * @param bytes 字节数
+ * @returns 格式化的文件大小字符串
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/**
+ * 检查是否为通用文件（非图片）
+ * @param file 文件对象
+ * @returns 是否为通用文件
+ */
+export function isGeneralFile(file: File): boolean {
+  return !isImageFile(file) && file.size > 0;
+}
+
+/**
+ * 生成唯一的文件ID
+ * @returns 唯一ID字符串
+ */
+export function generateFileId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+/**
  * 格式化时间戳为可读字符串
  * @param date 日期对象
  * @returns 格式化的时间字符串

@@ -4,8 +4,9 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { LocalImageFileItem, LocalTextFileItem, FileHistoryLoadingState, HistorySidebarType } from '@/types';
+import { LocalImageFileItem, LocalTextFileItem, LocalGeneralFileItem, FileHistoryLoadingState, HistorySidebarType } from '@/types';
 import { cn } from '@/lib/utils';
+import { getFileTypeIcon } from '@/lib/fileIcons';
 
 interface HistorySidebarProps {
   isVisible: boolean;
@@ -14,12 +15,14 @@ interface HistorySidebarProps {
   onSidebarTypeChange: (type: HistorySidebarType) => void;
   imageFiles: LocalImageFileItem[];
   textFiles: LocalTextFileItem[];
+  generalFiles: LocalGeneralFileItem[];
   loadingState: FileHistoryLoadingState;
   onRefresh: () => Promise<void>;
   onImageInsert: (imageSrc: string, altText: string) => void;
   onTextInsert: (fileName: string) => Promise<void>;
-  onFileDelete: (fileName: string, type: 'image' | 'text') => Promise<void>;
-  onClearAll: (type: 'image' | 'text') => Promise<void>;
+  onFileInsert: (fileName: string) => Promise<void>;
+  onFileDelete: (fileName: string, type: 'image' | 'text' | 'file') => Promise<void>;
+  onClearAll: (type: 'image' | 'text' | 'file') => Promise<void>;
   onConfirm?: (message: string) => Promise<boolean>;
 }
 
@@ -30,11 +33,12 @@ interface HistorySidebarProps {
  * @param onDelete - 删除文件回调
  */
 const FileItem: React.FC<{
-  file: LocalImageFileItem | LocalTextFileItem;
+  file: LocalImageFileItem | LocalTextFileItem | LocalGeneralFileItem;
   onInsert: () => void;
   onDelete: () => void;
 }> = ({ file, onInsert, onDelete }) => {
   const isImage = file.type === 'image';
+  const isGeneralFile = file.type === 'file';
 
   return (
     <div
@@ -43,7 +47,7 @@ const FileItem: React.FC<{
       {/* 现代化文件头部 */}
       <div className="flex items-start justify-between mb-3">
         <h4 className="text-sm font-semibold text-foreground line-clamp-2 flex-1">
-          {file.fileName.replace(/\.(jpg|jpeg|png|gif|webp|txt)$/i, '')}
+          {isGeneralFile ? file.fileName : file.fileName.replace(/\.(jpg|jpeg|png|gif|webp|txt)$/i, '')}
         </h4>
         <div className="flex items-center gap-3 ml-3">
           <span className="text-xs text-neutral-500 flex-shrink-0 bg-neutral-100 px-2 py-1 rounded-md">
@@ -82,6 +86,23 @@ const FileItem: React.FC<{
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
           </div>
         </div>
+      ) : isGeneralFile ? (
+        <div className="mb-2">
+          <div className="flex items-center justify-center h-28 bg-neutral-50 rounded-lg border border-neutral-200">
+            <div className="text-center">
+              {/* 文件类型图标显示 - 修复React渲染错误：只渲染icon属性而非整个对象 */}
+              <div className="text-4xl mb-2">
+                {getFileTypeIcon((file as LocalGeneralFileItem).fileName).icon}
+              </div>
+              <div className="text-xs text-neutral-500">
+                {(file as LocalGeneralFileItem).size ?
+                  `${((file as LocalGeneralFileItem).size! / 1024).toFixed(1)} KB` :
+                  '文件'
+                }
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="mb-2">
           <div className="text-xs text-neutral-600 bg-neutral-50 p-3 rounded-lg border border-neutral-200 line-clamp-3 font-mono leading-relaxed">
@@ -97,15 +118,15 @@ const FileItem: React.FC<{
  * 文件列表组件
  */
 const FileList: React.FC<{
-  files: LocalImageFileItem[] | LocalTextFileItem[];
-  type: 'image' | 'text';
-  onInsert: (file: LocalImageFileItem | LocalTextFileItem) => void;
+  files: LocalImageFileItem[] | LocalTextFileItem[] | LocalGeneralFileItem[];
+  type: 'image' | 'text' | 'file';
+  onInsert: (file: LocalImageFileItem | LocalTextFileItem | LocalGeneralFileItem) => void;
   onDelete: (fileName: string) => void;
   onClearAll: () => void;
   isLoading: boolean;
 }> = ({ files, type, onInsert, onDelete, onClearAll, isLoading }) => {
   const isEmpty = files.length === 0;
-  const typeLabel = type === 'image' ? '图片' : '文本';
+  const typeLabel = type === 'image' ? '图片' : type === 'text' ? '文本' : '文件';
 
   return (
     <div>
@@ -189,10 +210,12 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   onSidebarTypeChange,
   imageFiles,
   textFiles,
+  generalFiles,
   loadingState,
   onRefresh,
   onImageInsert,
   onTextInsert,
+  onFileInsert,
   onFileDelete,
   onClearAll,
   onConfirm
@@ -217,12 +240,14 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   }, [isVisible, onClose]);
 
   // 处理文件插入
-  const handleFileInsert = async (file: LocalImageFileItem | LocalTextFileItem) => {
+  const handleFileInsert = async (file: LocalImageFileItem | LocalTextFileItem | LocalGeneralFileItem) => {
     if (file.type === 'image') {
       const imageFile = file as LocalImageFileItem;
       onImageInsert(imageFile.filePath, imageFile.fileName.replace(/\.[^/.]+$/, ''));
-    } else {
+    } else if (file.type === 'text') {
       await onTextInsert(file.fileName);
+    } else if (file.type === 'file') {
+      await onFileInsert(file.fileName);
     }
     onClose();
   };
@@ -285,7 +310,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
           <button
             onClick={() => onSidebarTypeChange('images')}
             className={cn(
-              'flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2',
+              'flex-1 px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2',
               sidebarType === 'images'
                 ? 'text-primary-700 bg-white shadow-sm'
                 : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
@@ -299,7 +324,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
           <button
             onClick={() => onSidebarTypeChange('texts')}
             className={cn(
-              'flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2',
+              'flex-1 px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2',
               sidebarType === 'texts'
                 ? 'text-primary-700 bg-white shadow-sm'
                 : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
@@ -309,6 +334,20 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span>文本</span>
+          </button>
+          <button
+            onClick={() => onSidebarTypeChange('files')}
+            className={cn(
+              'flex-1 px-3 py-2.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center justify-center gap-2',
+              sidebarType === 'files'
+                ? 'text-primary-700 bg-white shadow-sm'
+                : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
+            )}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            <span>文件</span>
           </button>
         </div>
       </div>
@@ -341,8 +380,8 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         ) : (
           <div className="p-6">
             <FileList
-              files={sidebarType === 'images' ? imageFiles : textFiles}
-              type={sidebarType === 'images' ? 'image' : 'text'}
+              files={sidebarType === 'images' ? imageFiles : sidebarType === 'texts' ? textFiles : generalFiles}
+              type={sidebarType === 'images' ? 'image' : sidebarType === 'texts' ? 'text' : 'file'}
               onInsert={handleFileInsert}
               onDelete={handleFileDelete}
               onClearAll={handleClearAll}

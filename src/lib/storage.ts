@@ -66,7 +66,7 @@ async function migrateLegacyData(): Promise<void> {
     const backupFile = path.join(DATA_DIR, 'board-legacy-backup.json');
     await fs.copyFile(LEGACY_BOARD_FILE, backupFile);
 
-  } catch (error) {
+  } catch (_error) {
     // 旧版本文件不存在或迁移失败，这是正常情况
     // 静默处理错误
   }

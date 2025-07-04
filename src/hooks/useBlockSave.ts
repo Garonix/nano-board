@@ -144,9 +144,22 @@ export const useBlockSave = (
     console.log(`图片块 ${blockId} 插入后立即保存完成`);
   }, [saveBlocks]);
 
+  /**
+   * 块删除后立即保存
+   * @param blockId 被删除的块ID（用于日志记录）
+   */
+  const saveOnBlockDelete = useCallback(async (blockId: string) => {
+    const currentBlocks = currentBlocksRef.current;
+
+    // 删除操作需要同步到存储，确保删除操作被正确持久化
+    await saveBlocks(currentBlocks, blockId);
+    console.log(`块 ${blockId} 删除后立即保存完成`);
+  }, [saveBlocks]);
+
   return {
     updateBlocks,
     saveOnBlur,
-    saveOnImageInsert
+    saveOnImageInsert,
+    saveOnBlockDelete
   };
 };

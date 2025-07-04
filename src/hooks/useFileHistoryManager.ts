@@ -4,25 +4,27 @@
  */
 
 import { useCallback } from 'react';
-import { LocalImageFileItem, LocalTextFileItem, FileHistoryLoadingState } from '@/types';
+import { LocalImageFileItem, LocalTextFileItem, LocalGeneralFileItem, FileHistoryLoadingState } from '@/types';
 
 /**
  * 文件历史管理 Hook（简化版）
  * @param setLocalImageFiles 设置图片缓存列表函数
  * @param setLocalTextFiles 设置本地文本文件列表函数
+ * @param setLocalGeneralFiles 设置通用文件列表函数
  * @param setFileHistoryLoadingState 设置加载状态函数
  * @returns 文件历史管理相关函数
  */
 export const useFileHistoryManager = (
   setLocalImageFiles: (files: LocalImageFileItem[]) => void,
   setLocalTextFiles: (files: LocalTextFileItem[]) => void,
+  setLocalGeneralFiles: (files: LocalGeneralFileItem[]) => void,
   setFileHistoryLoadingState: (state: FileHistoryLoadingState) => void
 ) => {
 
   /**
    * 扫描指定类型的文件（使用新的统一API）
    */
-  const scanFiles = useCallback(async (type: 'images' | 'texts'): Promise<LocalImageFileItem[] | LocalTextFileItem[]> => {
+  const scanFiles = useCallback(async (type: 'images' | 'texts' | 'files'): Promise<LocalImageFileItem[] | LocalTextFileItem[] | LocalGeneralFileItem[]> => {
     try {
       const response = await fetch(`/api/files?action=scan&type=${type}`);
       if (!response.ok) {
@@ -45,7 +47,7 @@ export const useFileHistoryManager = (
             return fallbackResult.files || [];
           }
         }
-      } catch (fallbackError) {
+      } catch (_fallbackError) {
         // 静默处理后备API错误
       }
       throw error;
@@ -63,15 +65,17 @@ export const useFileHistoryManager = (
     });
 
     try {
-      // 并行扫描图片和文本文件
-      const [imageFiles, textFiles] = await Promise.all([
+      // 并行扫描图片、文本文件和通用文件
+      const [imageFiles, textFiles, generalFiles] = await Promise.all([
         scanFiles('images') as Promise<LocalImageFileItem[]>,
-        scanFiles('texts') as Promise<LocalTextFileItem[]>
+        scanFiles('texts') as Promise<LocalTextFileItem[]>,
+        scanFiles('files') as Promise<LocalGeneralFileItem[]>
       ]);
 
       // 更新状态
       setLocalImageFiles(imageFiles);
       setLocalTextFiles(textFiles);
+      setLocalGeneralFiles(generalFiles);
 
       // 设置成功状态
       setFileHistoryLoadingState({
@@ -89,7 +93,7 @@ export const useFileHistoryManager = (
         lastUpdated: null
       });
     }
-  }, [scanFiles, setLocalImageFiles, setLocalTextFiles, setFileHistoryLoadingState]);
+  }, [scanFiles, setLocalImageFiles, setLocalTextFiles, setLocalGeneralFiles, setFileHistoryLoadingState]);
 
   /**
    * 获取文本文件内容
@@ -158,7 +162,7 @@ export const useFileHistoryManager = (
       }
 
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }, []);

@@ -12,12 +12,20 @@ export interface BoardContent {
   lastModified: Date;
 }
 
+/** 文件类型枚举 */
+export type FileType = 'image' | 'text' | 'file';
+
 /** 内容块 */
 export interface ContentBlock {
   id: string;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'file';  // 新增 'file' 类型
   content: string;
   alt?: string;
+  // 文件特有属性
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  extension?: string;
 }
 
 /** 图片数据 */
@@ -34,7 +42,7 @@ export interface LocalFileItem {
   filePath: string;
   size: number;
   modifiedAt: string;
-  type: 'image' | 'text';
+  type: 'image' | 'text' | 'file';
 }
 
 /** 本地图片文件项 */
@@ -51,6 +59,14 @@ export interface LocalTextFileItem extends LocalFileItem {
   content?: string;
 }
 
+/** 本地通用文件项 */
+export interface LocalGeneralFileItem extends LocalFileItem {
+  type: 'file';
+  extension: string;
+  mimeType: string;
+  downloadPath: string;
+}
+
 /** 文件历史加载状态 */
 export interface FileHistoryLoadingState {
   isLoading: boolean;
@@ -59,7 +75,14 @@ export interface FileHistoryLoadingState {
 }
 
 /** 历史侧边栏类型 */
-export type HistorySidebarType = 'images' | 'texts';
+export type HistorySidebarType = 'images' | 'texts' | 'files';
+
+/** 文件类型图标映射 */
+export interface FileTypeIcon {
+  icon: string;
+  color: string;
+  bgColor: string;
+}
 
 /** 组件基础属性 */
 export interface ComponentProps {
@@ -128,6 +151,7 @@ export interface EditorState {
   showMarkdownPreview: boolean;
   isLoading: boolean;
   isUploadingImage: boolean;
+  isUploadingFile: boolean;  // 新增文件上传状态
   isDragOver: boolean;
   focusedBlockId: string;
   showHistorySidebar: boolean;
@@ -135,5 +159,6 @@ export interface EditorState {
   // 本地文件历史相关状态（统一数据源）
   localImageFiles: LocalImageFileItem[];
   localTextFiles: LocalTextFileItem[];
+  localGeneralFiles: LocalGeneralFileItem[];  // 新增通用文件列表
   fileHistoryLoadingState: FileHistoryLoadingState;
 }

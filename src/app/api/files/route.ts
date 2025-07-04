@@ -7,11 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { LocalImageFileItem, LocalTextFileItem } from '@/types';
+import { LocalImageFileItem, LocalTextFileItem, LocalGeneralFileItem } from '@/types';
 
 // 目录配置
 const PICS_DIR = path.join(process.cwd(), 'data', 'pics');
 const TEXTS_DIR = path.join(process.cwd(), 'data', 'texts');
+const FILES_DIR = path.join(process.cwd(), 'data', 'files');
 
 // 支持的文件扩展名
 const SUPPORTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -51,18 +52,51 @@ function validateFilePath(fileName: string, baseDir: string): string {
 }
 
 /**
+ * 根据文件扩展名获取MIME类型
+ */
+function getMimeType(extension: string): string {
+  const mimeTypes: Record<string, string> = {
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.zip': 'application/zip',
+    '.rar': 'application/x-rar-compressed',
+    '.7z': 'application/x-7z-compressed',
+    '.mp3': 'audio/mpeg',
+    '.mp4': 'video/mp4',
+    '.avi': 'video/x-msvideo',
+    '.mov': 'video/quicktime',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.xml': 'application/xml'
+  };
+
+  return mimeTypes[extension.toLowerCase()] || 'application/octet-stream';
+}
+
+/**
  * 扫描指定类型的文件
  */
-async function scanFiles(type: 'images' | 'texts'): Promise<LocalImageFileItem[] | LocalTextFileItem[]> {
+async function scanFiles(type: 'images' | 'texts' | 'files'): Promise<LocalImageFileItem[] | LocalTextFileItem[] | LocalGeneralFileItem[]> {
   const isImages = type === 'images';
-  const targetDir = isImages ? PICS_DIR : TEXTS_DIR;
-  const supportedExtensions = isImages ? SUPPORTED_IMAGE_EXTENSIONS : SUPPORTED_TEXT_EXTENSIONS;
+  const isTexts = type === 'texts';
+  const isFiles = type === 'files';
+
+  const targetDir = isImages ? PICS_DIR : isTexts ? TEXTS_DIR : FILES_DIR;
+  const supportedExtensions = isImages ? SUPPORTED_IMAGE_EXTENSIONS : isTexts ? SUPPORTED_TEXT_EXTENSIONS : null;
 
   await ensureDirectoryExists(targetDir);
 
   try {
     const files = await fs.readdir(targetDir);
-    const filteredFiles = files.filter(file => isFileSupported(file, supportedExtensions));
+    const filteredFiles = isFiles
+      ? files // 对于通用文件，不过滤扩展名
+      : files.filter(file => isFileSupported(file, supportedExtensions!));
 
     if (isImages) {
       const imageItems = await Promise.all(
@@ -90,7 +124,7 @@ async function scanFiles(type: 'images' | 'texts'): Promise<LocalImageFileItem[]
       return imageItems
         .filter((item): item is LocalImageFileItem => item !== null)
         .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
-    } else {
+    } else if (isTexts) {
       const textItems = await Promise.all(
         filteredFiles.map(async (fileName): Promise<LocalTextFileItem | null> => {
           try {
@@ -119,6 +153,38 @@ async function scanFiles(type: 'images' | 'texts'): Promise<LocalImageFileItem[]
       return textItems
         .filter((item): item is LocalTextFileItem => item !== null)
         .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+    } else {
+      // 处理通用文件
+      const fileItems = await Promise.all(
+        filteredFiles.map(async (fileName): Promise<LocalGeneralFileItem | null> => {
+          try {
+            const filePath = path.join(targetDir, fileName);
+            const stats = await fs.stat(filePath);
+
+            const extension = path.extname(fileName).toLowerCase();
+            const mimeType = getMimeType(extension);
+            const downloadPath = `/api/files/download?fileName=${encodeURIComponent(fileName)}`;
+
+            return {
+              id: fileName,
+              fileName,
+              filePath: downloadPath,
+              size: stats.size,
+              modifiedAt: stats.mtime.toISOString(),
+              type: 'file',
+              extension,
+              mimeType,
+              downloadPath
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      return fileItems
+        .filter((item): item is LocalGeneralFileItem => item !== null)
+        .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
     }
   } catch {
     return [];
@@ -128,19 +194,19 @@ async function scanFiles(type: 'images' | 'texts'): Promise<LocalImageFileItem[]
 /**
  * GET - 文件操作
  * 支持的操作：
- * - ?action=scan&type=images|texts - 扫描文件
+ * - ?action=scan&type=images|texts|files - 扫描文件
  * - ?action=content&fileName=xxx&type=text|image - 获取文件内容
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
-    const type = searchParams.get('type') as 'images' | 'texts' | 'text' | 'image';
+    const type = searchParams.get('type') as 'images' | 'texts' | 'files' | 'text' | 'image';
     const fileName = searchParams.get('fileName');
 
     // 扫描文件
     if (action === 'scan') {
-      if (!type || (type !== 'images' && type !== 'texts')) {
+      if (!type || (type !== 'images' && type !== 'texts' && type !== 'files')) {
         return NextResponse.json(
           { success: false, error: '无效的文件类型参数' },
           { status: 400 }

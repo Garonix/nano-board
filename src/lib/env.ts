@@ -15,6 +15,10 @@ export interface AppEnvironment {
   nodeEnv: 'development' | 'production' | 'test';
   /** 应用端口 */
   port: number;
+  /** 文件上传大小限制（字节） */
+  maxFileSize: number;
+  /** 文件数量限制 */
+  maxFileCount: number;
 }
 
 /**
@@ -62,6 +66,10 @@ export function getAppEnvironment(): AppEnvironment {
 
     // 应用端口
     port: parseNumberEnv(process.env.PORT, 3000),
+
+    // 文件上传配置
+    maxFileSize: parseNumberEnv(process.env.MAX_FILE_SIZE, 10 * 1024 * 1024), // 默认10MB
+    maxFileCount: parseNumberEnv(process.env.MAX_FILE_COUNT, 100), // 默认100个文件
   };
 }
 

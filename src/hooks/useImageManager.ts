@@ -43,7 +43,7 @@ export const useImageManager = (
     }
 
     const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const _end = textarea.selectionEnd;
     const value = textarea.value;
 
     // 在当前光标位置创建新行并插入图片

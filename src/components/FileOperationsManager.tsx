@@ -33,6 +33,9 @@ export interface FileOperationsManagerProps {
   // 图片插入后立即保存函数
   saveOnImageInsert?: (blockId: string) => Promise<void>;
 
+  // 块删除后立即保存函数
+  _saveOnBlockDelete?: (blockId: string) => Promise<void>;
+
   // 子组件渲染函数 - 使用 render props 模式
   children: (operations: FileOperations) => React.ReactNode;
 }
@@ -70,6 +73,7 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
   onCloseHistorySidebar,
   onRefreshFileHistory,
   saveOnImageInsert,
+  _saveOnBlockDelete, // 传递给子组件使用
   children
 }) => {
   // 本地状态
@@ -84,6 +88,7 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
     deleteFile,
     clearAllFiles
   } = useFileHistoryManager(
+    () => {}, // 空函数，状态管理在父组件
     () => {}, // 空函数，状态管理在父组件
     () => {}, // 空函数，状态管理在父组件
     () => {}  // 空函数，状态管理在父组件
@@ -104,7 +109,7 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
         // 刷新文件历史
         await onRefreshFileHistory();
       }
-    } catch (error) {
+    } catch (_error) {
       // 静默处理错误
     } finally {
       setIsSavingText(false);
@@ -256,7 +261,7 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
         // 刷新文件历史
         await onRefreshFileHistory();
       }
-    } catch (error) {
+    } catch (_error) {
       // 静默处理错误
     }
   };

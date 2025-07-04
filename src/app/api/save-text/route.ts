@@ -155,8 +155,8 @@ export async function GET() {
             createdAt: stats.birthtime.toISOString(),
             size: stats.size
           };
-        } catch (error) {
-          console.error(`读取文件 ${fileName} 失败:`, error);
+        } catch (_error) {
+          console.error(`读取文件 ${fileName} 失败:`, _error);
           return null;
         }
       })
@@ -223,7 +223,7 @@ export async function DELETE(request: NextRequest) {
       success: true,
       message: '文本文件删除成功'
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: '删除文本文件失败' },
       { status: 500 }

@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       success: true,
       imagePath: relativePath
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: '保存图片失败' },
       { status: 500 }
