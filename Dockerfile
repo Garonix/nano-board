@@ -26,15 +26,9 @@ COPY postcss.config.mjs ./
 COPY src/ ./src/
 COPY public/ ./public/
 
-# 设置构建时环境变量
-# 这些变量在构建时需要，用于 Next.js 配置
-ARG ENABLE_PASSWORD_AUTH=true
-ARG ACCESS_PASSWORD=nano2024
-ENV ENABLE_PASSWORD_AUTH=$ENABLE_PASSWORD_AUTH
-ENV ACCESS_PASSWORD=$ACCESS_PASSWORD
-
 # 构建应用
 # Next.js 会生成 standalone 输出，包含运行时所需的最小依赖
+# 配置通过API动态获取，无需构建时环境变量
 RUN npm run build
 
 # ================================

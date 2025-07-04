@@ -2,21 +2,19 @@ version: '3.8'
 
 services:
   nano-board:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: garonix/nano-board:latest
 
     container_name: nano-board
     restart: unless-stopped
-
+    
     ports:
       - "9029:3000"
 
     environment:
-      # 密码验证功能控制
-      - ENABLE_PASSWORD_AUTH=${ENABLE_PASSWORD_AUTH:-true}
-      # 自定义访问密码（仅在启用密码验证时生效）
-      - ACCESS_PASSWORD=${ACCESS_PASSWORD:-nano2024}
+      # 密码验证功能控制 - 通过API动态获取，无需NEXT_PUBLIC_前缀
+      - ENABLE_PASSWORD_AUTH=false
+      # 自定义访问密码 - 直接设置您想要的密码
+      - ACCESS_PASSWORD=nano2028
 
     volumes:
       - ./data:/app/data:rw

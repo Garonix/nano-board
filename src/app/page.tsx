@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { PasswordAuth } from '@/components/PasswordAuth';
 import { BoardEditor } from '@/components/BoardEditor';
-import { getClientEnvironment } from '@/lib/env';
+import { useConfig } from '@/hooks/useConfig';
 
 /**
  * 主页面组件
@@ -17,29 +17,52 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { enablePasswordAuth } = getClientEnvironment();
+  // 通过API获取配置信息，解决Next.js环境变量传递问题
+  const { config, loading: configLoading, error: configError } = useConfig();
 
   /** 检查认证状态 */
   useEffect(() => {
-    if (!enablePasswordAuth) {
+    // 等待配置加载完成
+    if (configLoading || !config) {
+      return;
+    }
+
+    console.log('🔍 配置信息:', {
+      enablePasswordAuth: config.enablePasswordAuth,
+      hasCustomPassword: config.hasCustomPassword,
+      configError,
+    });
+
+    if (!config.enablePasswordAuth) {
+      console.log('❌ 密码验证已禁用，直接进入应用');
       setIsAuthenticated(true);
       setIsLoading(false);
       return;
     }
 
-    const authStatus = sessionStorage.getItem('nano-board-auth');
-    if (authStatus === 'true') {
-      setIsAuthenticated(true);
+    console.log('✅ 密码验证已启用，检查认证状态');
+
+    // 检查本地存储的认证状态
+    if (typeof window !== 'undefined') {
+      const authStatus = sessionStorage.getItem('nano-board-auth');
+      if (authStatus === 'true') {
+        console.log('✅ 找到有效的认证状态，直接进入应用');
+        setIsAuthenticated(true);
+      } else {
+        console.log('❌ 未找到有效认证状态，显示密码验证界面');
+      }
     }
+
     setIsLoading(false);
-  }, [enablePasswordAuth]);
+  }, [config, configLoading, configError]);
 
   /** 认证成功回调 */
   const handleAuthenticated = () => {
     setIsAuthenticated(true);
   };
 
-  if (isLoading) {
+  // 显示加载状态（配置加载中或应用初始化中）
+  if (isLoading || configLoading || !config) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center animate-fade-in">
         <div className="text-center p-8">
@@ -48,7 +71,7 @@ export default function Home() {
           </div>
 
           <div className="text-lg font-medium text-foreground mb-6">
-            {enablePasswordAuth ? '验证身份中' : '启动应用中'}
+            {configLoading ? '加载配置中' : config?.enablePasswordAuth ? '验证身份中' : '启动应用中'}
           </div>
 
           <div className="w-48 mx-auto">
@@ -61,7 +84,8 @@ export default function Home() {
     );
   }
 
-  if (enablePasswordAuth && !isAuthenticated) {
+  // 显示密码验证界面
+  if (config.enablePasswordAuth && !isAuthenticated) {
     return <PasswordAuth onAuthenticated={handleAuthenticated} />;
   }
 

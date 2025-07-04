@@ -51,7 +51,7 @@ export function getAppEnvironment(): AppEnvironment {
     enablePasswordAuth: parseBooleanEnv(
       process.env.ENABLE_PASSWORD_AUTH ||
       process.env.NEXT_PUBLIC_ENABLE_PASSWORD_AUTH,
-      false // 默认不启用密码验证
+      true // 默认启用密码验证，提供安全保护
     ),
 
     // 自定义访问密码
@@ -65,22 +65,7 @@ export function getAppEnvironment(): AppEnvironment {
   };
 }
 
-/**
- * 客户端环境变量获取
- * 在客户端组件中使用，只能访问 NEXT_PUBLIC_ 前缀的环境变量或通过 next.config.ts 暴露的变量
- */
-export function getClientEnvironment() {
-  // 优先使用 NEXT_PUBLIC_ 前缀的环境变量，然后使用通过 next.config.ts 暴露的变量
-  const enablePasswordAuth = parseBooleanEnv(
-    process.env.NEXT_PUBLIC_ENABLE_PASSWORD_AUTH ||
-    process.env.ENABLE_PASSWORD_AUTH,
-    false
-  );
 
-  return {
-    enablePasswordAuth,
-  };
-}
 
 /**
  * 环境变量验证
