@@ -1,16 +1,32 @@
 /**
- * 文本管理 Hook（简化版）
- * 统一使用本地文件系统，移除API保存功能
+ * 文本管理 Hook（扩展版）
+ * 支持文本粘贴、拖拽上传和文件保存功能
  */
 
 import { useCallback } from 'react';
 
 /**
- * 文本管理 Hook（简化版）
- * 注意：API保存功能已移除，统一使用文件系统扫描
+ * 检查是否为文本文件
+ * @param file 文件对象
+ * @returns 是否为文本文件
+ */
+const isTextFile = (file: File): boolean => {
+  return file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
+};
+
+/**
+ * 文本管理 Hook（扩展版）
+ * 支持文本粘贴、拖拽上传和文件保存功能
+ * @param onInsertTextContent 插入文本内容的回调函数
+ * @param refreshFileHistory 刷新文件历史的回调函数
+ * @param setIsUploadingText 设置文本上传状态的回调函数
  * @returns 文本管理相关函数
  */
-export const useTextManager = () => {
+export const useTextManager = (
+  onInsertTextContent?: (content: string) => void,
+  refreshFileHistory?: () => Promise<void>,
+  setIsUploadingText?: (uploading: boolean) => void
+) => {
 
   /**
    * 保存文本内容到独立文件
@@ -39,7 +55,99 @@ export const useTextManager = () => {
     }
   }, []);
 
+  /**
+   * 上传文本文件到服务器
+   * @param file 文本文件对象
+   * @returns Promise<boolean> 上传是否成功
+   */
+  const uploadTextFile = useCallback(async (file: File): Promise<boolean> => {
+    if (!isTextFile(file)) return false;
+
+    try {
+      const content = await file.text();
+      return await saveTextToFile(content);
+    } catch (error) {
+      console.error('读取文本文件失败:', error);
+      return false;
+    }
+  }, [saveTextToFile]);
+
+  /**
+   * 处理文本粘贴事件
+   * @param e 粘贴事件对象
+   */
+  const handleTextPaste = useCallback(async (e: React.ClipboardEvent) => {
+    // 获取粘贴的文本内容
+    const textContent = e.clipboardData.getData('text/plain');
+
+    if (textContent && textContent.trim()) {
+      // 如果文本内容较长（超过500字符），自动保存为文件
+      if (textContent.length > 500) {
+        e.preventDefault();
+
+        if (setIsUploadingText) {
+          setIsUploadingText(true);
+        }
+
+        try {
+          const success = await saveTextToFile(textContent);
+          if (success && refreshFileHistory) {
+            await refreshFileHistory();
+          }
+        } finally {
+          if (setIsUploadingText) {
+            setIsUploadingText(false);
+          }
+        }
+      }
+      // 短文本不做特殊处理，让默认的粘贴行为处理
+    }
+  }, [saveTextToFile, refreshFileHistory, setIsUploadingText]);
+
+  /**
+   * 处理文本文件拖拽上传
+   * @param files 文件列表
+   */
+  const handleTextDrop = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.isArray(files) ? files : Array.from(files);
+    const textFiles = fileArray.filter(isTextFile);
+
+    if (textFiles.length === 0) return;
+
+    if (setIsUploadingText) {
+      setIsUploadingText(true);
+    }
+
+    try {
+      for (const file of textFiles) {
+        const content = await file.text();
+
+        // 保存文本文件到服务器
+        const success = await saveTextToFile(content);
+
+        if (success) {
+          console.log(`文本文件上传成功: ${file.name}`);
+        }
+      }
+
+      // 上传完成后刷新文件历史
+      if (refreshFileHistory) {
+        await refreshFileHistory();
+      }
+    } catch (error) {
+      console.error('文本文件上传失败:', error);
+    } finally {
+      if (setIsUploadingText) {
+        setIsUploadingText(false);
+      }
+    }
+  }, [saveTextToFile, refreshFileHistory, setIsUploadingText]);
+
   return {
-    saveTextToFile
+    saveTextToFile,
+    uploadTextFile,
+    handleTextPaste,
+    handleTextDrop,
+    isTextFile
   };
 };

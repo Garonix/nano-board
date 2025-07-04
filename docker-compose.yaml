@@ -14,8 +14,8 @@ services:
       # 密码验证功能控制 - 通过API动态获取，无需NEXT_PUBLIC_前缀
       - ENABLE_PASSWORD_AUTH=false
       # 自定义访问密码 - 直接设置您想要的密码
-      - ACCESS_PASSWORD=nano2028
+      - ACCESS_PASSWORD=252349
 
     volumes:
-      - ./data:/app/data:rw
-      - ./logs:/app/logs:rw
+      - ./data:/app/data
+      - ./logs:/app/logs

@@ -20,6 +20,7 @@ import { useEditorState } from '@/hooks/useEditorState';
 import { useContentConverter } from '@/hooks/useContentConverter';
 import { useImageManager } from '@/hooks/useImageManager';
 import { useFileManager } from '@/hooks/useFileManager';
+import { useTextManager } from '@/hooks/useTextManager';
 import { useScrollSync } from '@/hooks/useScrollSync';
 import { useKeyboardHandlers } from '@/hooks/useKeyboardHandlers';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
@@ -57,6 +58,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setIsLoading,
     setIsUploadingImage,
     setIsUploadingFile,
+    setIsUploadingText,
     setIsDragOver,
     setFocusedBlockId,
     setShowHistorySidebar,
@@ -75,6 +77,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     showMarkdownPreview,
     isLoading,
     isUploadingImage,
+    isUploadingText,
 
     isDragOver,
     focusedBlockId,
@@ -556,6 +559,16 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     alert
   );
 
+  // 文本管理 Hook
+  const {
+    handleTextPaste,
+    handleTextDrop
+  } = useTextManager(
+    insertTextContentAdapted,
+    refreshFileHistory,
+    setIsUploadingText
+  );
+
   // 滚动同步 Hook - 使用改进版本
   const {
     editorRef,
@@ -580,7 +593,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     setCurrentBlocks
   );
 
-  // 组合拖拽处理函数 - 同时支持图片和文件
+  // 组合拖拽处理函数 - 同时支持文本、图片和文件
   const handleCombinedDrop = useCallback(async (files: File[]) => {
     // 创建FileList对象以兼容useFileManager
     const fileList = {
@@ -593,12 +606,27 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       }
     } as FileList;
 
-    // 同时处理图片和文件拖拽
+    // 同时处理文本、图片和文件拖拽
     await Promise.all([
+      handleTextDrop(files),   // useTextManager期望File[]
       handleImageDrop(files),  // useImageManager期望File[]
       handleFileDrop(fileList) // useFileManager期望FileList
     ]);
-  }, [handleImageDrop, handleFileDrop]);
+  }, [handleTextDrop, handleImageDrop, handleFileDrop]);
+
+  // 组合粘贴处理函数 - 同时支持文本和图片粘贴
+  const handleCombinedPaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const hasImages = items.some(item => item.type.startsWith('image/'));
+
+    if (hasImages) {
+      // 如果有图片，优先处理图片粘贴
+      await handleImagePaste(e);
+    } else {
+      // 如果没有图片，处理文本粘贴
+      await handleTextPaste(e);
+    }
+  }, [handleImagePaste, handleTextPaste]);
 
   // 拖拽处理 Hook
   const { handleDragOver, handleDragLeave, handleDrop, cleanup: cleanupDragAndDrop } = useDragAndDrop(
@@ -781,6 +809,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
             isMarkdownMode={isMarkdownMode}
             showMarkdownPreview={showMarkdownPreview}
             isUploadingImage={isUploadingImage}
+            isUploadingText={isUploadingText}
             fileHistoryLoadingState={fileHistoryLoadingState}
             onToggleMarkdownMode={toggleMarkdownMode}
             onToggleMarkdownPreview={toggleMarkdownPreview}
@@ -903,7 +932,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                     debouncedAutoScrollToNewContent(block.id, 50);
                                   }
                                 }}
-                                onPaste={handleImagePaste}
+                                onPaste={handleCombinedPaste}
                                 onKeyDown={(e) => handleKeyDown(e, block.id)}
                                 onFocus={(e) => {
                                   setFocusedBlockId(block.id);
@@ -1083,7 +1112,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                             resetScrollSync();
                           }, 0);
                         }}
-                        onPaste={handleImagePaste}
+                        onPaste={handleCombinedPaste}
                         onKeyDown={handleMarkdownKeyDown}
                         onScroll={showMarkdownPreview ? syncScrollFromEditor : undefined}
                         onBlur={() => {

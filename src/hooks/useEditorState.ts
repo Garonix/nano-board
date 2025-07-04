@@ -26,6 +26,7 @@ interface UIState {
   isLoading: boolean;
   isUploadingImage: boolean;
   isUploadingFile: boolean;  // 新增文件上传状态
+  isUploadingText: boolean;  // 新增文本上传状态
   isDragOver: boolean;
   showMarkdownPreview: boolean;
   showHistorySidebar: boolean;
@@ -57,6 +58,7 @@ export const useEditorState = () => {
     isLoading: true,
     isUploadingImage: false,
     isUploadingFile: false,  // 初始化文件上传状态
+    isUploadingText: false,  // 初始化文本上传状态
     isDragOver: false,
     showMarkdownPreview: false,
     showHistorySidebar: false,
@@ -239,6 +241,10 @@ export const useEditorState = () => {
     updateUI({ isUploadingFile });
   }, [updateUI]);
 
+  const setIsUploadingText = useCallback((isUploadingText: boolean) => {
+    updateUI({ isUploadingText });
+  }, [updateUI]);
+
   const setIsDragOver = useCallback((isDragOver: boolean) => {
     updateUI({ isDragOver });
   }, [updateUI]);
@@ -290,6 +296,7 @@ export const useEditorState = () => {
     setIsLoading,
     setIsUploadingImage,
     setIsUploadingFile,
+    setIsUploadingText,
     setIsDragOver,
     setFocusedBlockId,
     setShowHistorySidebar,

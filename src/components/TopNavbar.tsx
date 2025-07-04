@@ -17,6 +17,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   isMarkdownMode,
   showMarkdownPreview,
   isUploadingImage,
+  isUploadingText = false,
   fileHistoryLoadingState,
   onToggleMarkdownMode,
   onToggleMarkdownPreview,
@@ -97,19 +98,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{fileHistoryLoadingState.isLoading ? '加载中...' : '历史'}</span>
+            历史
           </span>
         </button>
-
-        {/* 现代化上传状态指示器 */}
-        {isUploadingImage && (
-          <div className="flex items-center gap-3 px-4 py-2 bg-warning-50 border border-warning-200 rounded-lg animate-scale-fade-in">
-            <div className="relative">
-              <div className="w-4 h-4 border-2 border-warning-300 border-t-warning-600 rounded-full animate-spin-modern"></div>
-            </div>
-            <span className="text-sm font-medium text-warning-700">上传中...</span>
-          </div>
-        )}
       </div>
     </div>
   );

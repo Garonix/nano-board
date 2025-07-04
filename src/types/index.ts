@@ -100,6 +100,7 @@ export interface TopNavbarProps {
   isMarkdownMode: boolean;
   showMarkdownPreview: boolean;
   isUploadingImage: boolean;
+  isUploadingText?: boolean;  // 新增文本上传状态（可选）
   fileHistoryLoadingState: FileHistoryLoadingState;
   onToggleMarkdownMode: () => void;
   onToggleMarkdownPreview: () => void;
@@ -152,6 +153,7 @@ export interface EditorState {
   isLoading: boolean;
   isUploadingImage: boolean;
   isUploadingFile: boolean;  // 新增文件上传状态
+  isUploadingText: boolean;  // 新增文本上传状态
   isDragOver: boolean;
   focusedBlockId: string;
   showHistorySidebar: boolean;
