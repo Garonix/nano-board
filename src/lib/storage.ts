@@ -52,8 +52,6 @@ async function migrateLegacyData(): Promise<void> {
       // 新文件不存在，执行迁移
     }
 
-    console.log('检测到旧版本数据，开始迁移到新的存储架构...');
-
     // 读取旧版本数据
     const legacyData = await fs.readFile(LEGACY_BOARD_FILE, 'utf-8');
     const legacyBoardData: BoardContent = JSON.parse(legacyData);
@@ -64,18 +62,13 @@ async function migrateLegacyData(): Promise<void> {
       lastModified: new Date(),
     }, null, 2), 'utf-8');
 
-    console.log('数据迁移完成：旧数据已迁移到普通模式存储');
-
     // 可选：备份旧文件而不是删除
     const backupFile = path.join(DATA_DIR, 'board-legacy-backup.json');
     await fs.copyFile(LEGACY_BOARD_FILE, backupFile);
-    console.log('旧版本文件已备份为:', backupFile);
 
   } catch (error) {
     // 旧版本文件不存在或迁移失败，这是正常情况
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.warn('数据迁移过程中出现警告:', error);
-    }
+    // 静默处理错误
   }
 }
 

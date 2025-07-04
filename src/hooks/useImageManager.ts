@@ -46,8 +46,6 @@ export const useImageManager = (
     const end = textarea.selectionEnd;
     const value = textarea.value;
 
-    console.log('当前textarea状态:', { start, end, valueLength: value.length });
-
     // 在当前光标位置创建新行并插入图片
     // 不管光标在哪里，都先插入换行符创建新行，然后插入图片，再添加空行
     const imageMarkdown = `\n![${altText}](${imageSrc})\n`;
@@ -56,13 +54,9 @@ export const useImageManager = (
     // 始终在光标起始位置插入，保留所有原有文本
     const newValue = value.slice(0, start) + imageMarkdown + value.slice(start);
 
-    console.log('准备更新内容:', { imageMarkdown, newValueLength: newValue.length });
-
     // 更新React状态
     const newBlocks = contentToBlocks(newValue);
     setBlocks(newBlocks);
-
-    console.log('已更新blocks，新blocks数量:', newBlocks.length);
 
     // 设置光标位置到图片语法后的换行符后，用户可以立即继续输入文本
     setTimeout(() => {

@@ -17,9 +17,7 @@ export async function GET() {
     };
 
     return NextResponse.json(clientConfig);
-  } catch (error) {
-    console.error('获取配置失败:', error);
-    
+  } catch {
     // 发生错误时返回安全的默认配置
     return NextResponse.json({
       enablePasswordAuth: true, // 默认启用密码验证，确保安全

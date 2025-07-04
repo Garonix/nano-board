@@ -55,8 +55,6 @@ export const useBlockSave = (
         body: JSON.stringify({ content, mode }),
       });
 
-      console.log(`文本块 ${blockId} 失焦保存完成`);
-
       // 3秒后隐藏保存状态提示
       setTimeout(() => {
         saveState.setSavingBlockId(null);

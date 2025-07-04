@@ -94,7 +94,6 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
    */
   const handleSaveText = async (content: string): Promise<void> => {
     if (!content.trim()) {
-      console.warn('不能保存空白内容');
       return;
     }
 
@@ -102,14 +101,11 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
     try {
       const success = await saveTextToFile(content);
       if (success) {
-        console.log('文本保存成功');
         // 刷新文件历史
         await onRefreshFileHistory();
-      } else {
-        console.error('文本保存失败');
       }
     } catch (error) {
-      console.error('保存文本时发生错误:', error);
+      // 静默处理错误
     } finally {
       setIsSavingText(false);
     }
@@ -259,12 +255,9 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
       if (success) {
         // 刷新文件历史
         await onRefreshFileHistory();
-        console.log(`所有${fileType === 'image' ? '图片' : '文本'}文件清除成功`);
-      } else {
-        console.error(`清除${fileType === 'image' ? '图片' : '文本'}文件失败`);
       }
     } catch (error) {
-      console.error('清除本地文件时发生错误:', error);
+      // 静默处理错误
     }
   };
 

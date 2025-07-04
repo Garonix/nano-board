@@ -114,8 +114,6 @@ export async function POST(request: NextRequest) {
     // 保存纯文本内容（不使用JSON格式）
     await fs.writeFile(filePath, content, 'utf-8');
 
-    console.log(`文本已保存: ${path.basename(filePath)}`);
-
     return NextResponse.json({
       success: true,
       fileName: path.basename(filePath),
@@ -221,14 +219,11 @@ export async function DELETE(request: NextRequest) {
     // 删除文件
     await fs.unlink(fullFilePath);
 
-    console.log(`文本文件已删除: ${fileName}`);
-
     return NextResponse.json({
       success: true,
       message: '文本文件删除成功'
     });
   } catch (error) {
-    console.error('删除文本文件失败:', error);
     return NextResponse.json(
       { error: '删除文本文件失败' },
       { status: 500 }

@@ -77,10 +77,7 @@ export function validateEnvironment(): { isValid: boolean; errors: string[] } {
 
   // 验证密码验证功能配置
   if (env.enablePasswordAuth && !env.accessPassword) {
-    // 如果启用了密码验证但没有设置自定义密码，使用默认密码（仅开发环境警告）
-    if (env.nodeEnv === 'development') {
-      console.warn('⚠️  密码验证已启用但未设置 ACCESS_PASSWORD，将使用默认密码');
-    }
+    // 如果启用了密码验证但没有设置自定义密码，使用默认密码
   }
 
   // 验证端口配置

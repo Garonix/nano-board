@@ -132,14 +132,11 @@ export async function POST(request: NextRequest) {
     // 返回相对路径
     const relativePath = `data/pics/${fileName}`;
 
-    console.log(`图片已保存: ${relativePath}`);
-
     return NextResponse.json({
       success: true,
       imagePath: relativePath
     });
   } catch (error) {
-    console.error('保存图片失败:', error);
     return NextResponse.json(
       { error: '保存图片失败' },
       { status: 500 }

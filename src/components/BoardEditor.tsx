@@ -173,7 +173,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     }
   }, [markdownConverter, markdownBlocks]);
 
-  /** Markdown渲染组件配置 */
   const markdownComponents = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code(props: any) {
@@ -203,7 +202,6 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       );
     },
 
-    /** 图片组件 - 优化显示效果 */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     img(props: any) {
       const { src, alt, ...rest } = props;

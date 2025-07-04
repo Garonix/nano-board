@@ -79,8 +79,7 @@ export async function POST(request: NextRequest) {
       mode,
       message: `${mode === 'normal' ? '普通模式' : 'Markdown模式'}内容保存成功`
     });
-  } catch (error) {
-    console.error('保存白板内容失败:', error);
+  } catch {
     return NextResponse.json(
       { error: '保存白板内容失败' },
       { status: 500 }

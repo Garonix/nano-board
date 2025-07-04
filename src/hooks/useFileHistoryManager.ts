@@ -36,9 +36,7 @@ export const useFileHistoryManager = (
 
       return result.files || [];
     } catch (error) {
-      console.error(`扫描${type}文件失败:`, error);
       // 如果新API失败，尝试使用旧API作为后备
-      console.log(`尝试使用旧API扫描${type}文件...`);
       try {
         const fallbackResponse = await fetch(`/api/scan-files?type=${type}`);
         if (fallbackResponse.ok) {
@@ -48,7 +46,7 @@ export const useFileHistoryManager = (
           }
         }
       } catch (fallbackError) {
-        console.error('旧API也失败了:', fallbackError);
+        // 静默处理后备API错误
       }
       throw error;
     }
@@ -82,7 +80,6 @@ export const useFileHistoryManager = (
         lastUpdated: new Date()
       });
 
-      console.log(`文件历史刷新完成: ${imageFiles.length} 个图片文件, ${textFiles.length} 个文本文件`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '刷新文件历史失败';
 
@@ -91,8 +88,6 @@ export const useFileHistoryManager = (
         error: errorMessage,
         lastUpdated: null
       });
-
-      console.error('刷新文件历史失败:', error);
     }
   }, [scanFiles, setLocalImageFiles, setLocalTextFiles, setFileHistoryLoadingState]);
 
@@ -162,10 +157,8 @@ export const useFileHistoryManager = (
         throw new Error(result.error || '清除文件失败');
       }
 
-      console.log(`所有${fileType === 'image' ? '图片' : '文本'}文件清除完成`);
       return true;
     } catch (error) {
-      console.error('清除文件失败:', error);
       return false;
     }
   }, []);

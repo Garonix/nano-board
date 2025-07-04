@@ -110,8 +110,7 @@ async function scanFiles(type: 'images' | 'texts'): Promise<LocalImageFileItem[]
               type: 'text',
               preview
             };
-          } catch (error) {
-            console.error(`读取文件 ${fileName} 失败:`, error);
+          } catch {
             return null;
           }
         })
@@ -121,8 +120,7 @@ async function scanFiles(type: 'images' | 'texts'): Promise<LocalImageFileItem[]
         .filter((item): item is LocalTextFileItem => item !== null)
         .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
     }
-  } catch (error) {
-    console.error(`扫描${type}文件失败:`, error);
+  } catch {
     return [];
   }
 }

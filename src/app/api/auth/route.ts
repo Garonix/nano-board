@@ -39,8 +39,7 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-  } catch (error) {
-    console.error('密码验证失败:', error);
+  } catch {
     return NextResponse.json(
       { success: false, error: '验证失败' },
       { status: 500 }
@@ -59,8 +58,7 @@ export async function GET() {
     return NextResponse.json({
       enablePasswordAuth: env.enablePasswordAuth,
     });
-  } catch (error) {
-    console.error('获取验证状态失败:', error);
+  } catch {
     return NextResponse.json(
       { error: '获取状态失败' },
       { status: 500 }

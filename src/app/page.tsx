@@ -27,29 +27,17 @@ export default function Home() {
       return;
     }
 
-    console.log('🔍 配置信息:', {
-      enablePasswordAuth: config.enablePasswordAuth,
-      hasCustomPassword: config.hasCustomPassword,
-      configError,
-    });
-
     if (!config.enablePasswordAuth) {
-      console.log('❌ 密码验证已禁用，直接进入应用');
       setIsAuthenticated(true);
       setIsLoading(false);
       return;
     }
 
-    console.log('✅ 密码验证已启用，检查认证状态');
-
     // 检查本地存储的认证状态
     if (typeof window !== 'undefined') {
       const authStatus = sessionStorage.getItem('nano-board-auth');
       if (authStatus === 'true') {
-        console.log('✅ 找到有效的认证状态，直接进入应用');
         setIsAuthenticated(true);
-      } else {
-        console.log('❌ 未找到有效认证状态，显示密码验证界面');
       }
     }
 

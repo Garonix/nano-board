@@ -118,7 +118,6 @@ export async function deleteImageFromServer(imageSrc: string): Promise<boolean> 
     // 从URL中提取文件名
     const fileName = imageSrc.split('/').pop();
     if (!fileName) {
-      console.error('无法从URL中提取文件名:', imageSrc);
       return false;
     }
 
@@ -127,16 +126,11 @@ export async function deleteImageFromServer(imageSrc: string): Promise<boolean> 
     });
 
     if (response.ok) {
-      const result = await response.json();
-      console.log('服务器图片删除成功:', result.message);
       return true;
     } else if (response.status === 404) {
       // 文件不存在被视为成功（已经不存在了）
-      console.log('图片文件不存在，视为删除成功:', fileName);
       return true;
     } else {
-      const error = await response.json();
-      console.error('服务器图片删除失败:', error.error);
       return false;
     }
   } catch (error) {
