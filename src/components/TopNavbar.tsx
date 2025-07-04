@@ -16,8 +16,8 @@ import { TopNavbarProps } from '@/types';
 export const TopNavbar: React.FC<TopNavbarProps> = ({
   isMarkdownMode,
   showMarkdownPreview,
-  isUploadingImage,
-  isUploadingText = false,
+  isUploadingImage: _isUploadingImage,
+  isUploadingText: _isUploadingText = false,
   fileHistoryLoadingState,
   onToggleMarkdownMode,
   onToggleMarkdownPreview,

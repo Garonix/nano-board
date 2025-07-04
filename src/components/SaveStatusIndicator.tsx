@@ -1,9 +1,9 @@
 /**
  * 保存状态提示组件
- * 在文本输入框右下角显示"已保存"提示，3秒后自动消失
+ * 在文本输入框右下角显示"已保存"提示，支持淡入淡出动画效果
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -14,6 +14,8 @@ interface SaveStatusIndicatorProps {
   isVisible: boolean;
   /** 自定义样式类名 */
   className?: string;
+  /** 显示持续时间（毫秒），默认3000ms */
+  duration?: number;
 }
 
 /**
@@ -23,9 +25,45 @@ interface SaveStatusIndicatorProps {
  */
 export const SaveStatusIndicator: React.FC<SaveStatusIndicatorProps> = ({
   isVisible,
-  className
+  className,
+  duration = 3000
 }) => {
-  if (!isVisible) {
+  const [shouldRender, setShouldRender] = useState(false);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+
+  useEffect(() => {
+    if (isVisible) {
+      // 显示时立即渲染并开始淡入动画
+      setShouldRender(true);
+      setIsAnimatingOut(false);
+
+      // 设置自动隐藏定时器
+      const hideTimer = setTimeout(() => {
+        setIsAnimatingOut(true);
+
+        // 淡出动画完成后移除元素
+        setTimeout(() => {
+          setShouldRender(false);
+          setIsAnimatingOut(false);
+        }, 200); // 与淡出动画时长保持一致
+      }, duration);
+
+      return () => clearTimeout(hideTimer);
+    } else {
+      // 外部控制隐藏时立即开始淡出
+      if (shouldRender) {
+        setIsAnimatingOut(true);
+        const removeTimer = setTimeout(() => {
+          setShouldRender(false);
+          setIsAnimatingOut(false);
+        }, 200);
+
+        return () => clearTimeout(removeTimer);
+      }
+    }
+  }, [isVisible, duration, shouldRender]);
+
+  if (!shouldRender) {
     return null;
   }
 
@@ -40,8 +78,10 @@ export const SaveStatusIndicator: React.FC<SaveStatusIndicatorProps> = ({
         'px-2 py-1 text-xs text-green-700',
         // 阴影效果
         'shadow-sm',
-        // 动画效果
-        'animate-in fade-in-0 slide-in-from-bottom-1 duration-200',
+        // 动画效果 - 根据状态选择淡入或淡出
+        isAnimatingOut
+          ? 'animate-fade-out'
+          : 'animate-scale-fade-in',
         // 指针事件
         'pointer-events-none',
         className
@@ -63,6 +103,8 @@ interface SaveStatusContainerProps {
   children: React.ReactNode;
   /** 自定义样式类名 */
   className?: string;
+  /** 显示持续时间（毫秒），默认3000ms */
+  duration?: number;
 }
 
 /**
@@ -73,12 +115,13 @@ interface SaveStatusContainerProps {
 export const SaveStatusContainer: React.FC<SaveStatusContainerProps> = ({
   isVisible,
   children,
-  className
+  className,
+  duration
 }) => {
   return (
     <div className={cn('relative', className)}>
       {children}
-      <SaveStatusIndicator isVisible={isVisible} />
+      <SaveStatusIndicator isVisible={isVisible} duration={duration} />
     </div>
   );
 };

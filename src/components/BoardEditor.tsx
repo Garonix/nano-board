@@ -243,7 +243,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               }}
               {...rest}
             />
-            {/* 图片遮罩层 */}
+            {/* 图片hover遮罩层 - 定义hover效果的精确触发范围 */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
           </div>
         </span>
@@ -1009,7 +1009,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                           </div>
                         ) : block.type === 'image' ? (
                           <div className="w-full text-center my-4">
-                            {/* 图片容器 - 限制最大高度300px，修复删除按钮定位 */}
+                            {/* 图片容器 - hover效果基于图片区域而非外层容器 */}
                             <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full group">
                               {/* 现代化图片删除按钮 - 精确定位在图片元素右上角 */}
                               <button
@@ -1048,7 +1048,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                     `;
                                   }}
                                 />
-                                {/* 图片遮罩层 */}
+                                {/* 图片hover遮罩层 - 定义hover效果的精确触发范围 */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                               </div>
                             </div>

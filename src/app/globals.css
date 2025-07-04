@@ -231,6 +231,22 @@ html, body, #__next {
   animation: fade-in 0.2s ease-out;
 }
 
+/* 淡出动画 */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-fade-out {
+  animation: fade-out 0.2s ease-in;
+}
+
 /* 缩放淡入动画 */
 @keyframes scale-fade-in {
   from {
