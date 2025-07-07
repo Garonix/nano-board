@@ -231,20 +231,23 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       const { src, alt, ...rest } = props;
       return (
         <span className="inline-block my-6 text-center w-full">
-          <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full group">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt={alt}
-              className="max-w-full h-auto block transition-transform duration-200 group-hover:scale-105"
-              style={{
-                maxHeight: '400px',
-                objectFit: 'contain'
-              }}
-              {...rest}
-            />
-            {/* 图片hover遮罩层 - 定义hover效果的精确触发范围 */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+          <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full">
+            {/* hover效果只在图片实际像素区域触发 */}
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={alt}
+                className="max-w-full h-auto block transition-transform duration-200 hover:scale-105 group"
+                style={{
+                  maxHeight: '400px',
+                  objectFit: 'contain'
+                }}
+                {...rest}
+              />
+              {/* 图片hover遮罩层 - 精确覆盖图片实际像素区域 */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
+            </div>
           </div>
         </span>
       );
@@ -1009,9 +1012,9 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                           </div>
                         ) : block.type === 'image' ? (
                           <div className="w-full text-center my-4">
-                            {/* 图片容器 - hover效果基于图片区域而非外层容器 */}
-                            <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full group">
-                              {/* 现代化图片删除按钮 - 精确定位在图片元素右上角 */}
+                            {/* 图片容器 - hover效果只在图片实际区域内触发 */}
+                            <div className="relative inline-block bg-surface-elevated rounded-xl overflow-hidden shadow-md border border-border hover:shadow-lg transition-all duration-200 max-w-full">
+                              {/* 现代化图片删除按钮 - 只在图片hover时显示 */}
                               <button
                                 onClick={() => deleteNormalBlock(block.id)}
                                 className="absolute top-3 right-3 z-10 w-5 h-5 bg-error-500 hover:bg-error-600 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -1022,13 +1025,13 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                 </svg>
                               </button>
 
-                              {/* 现代化图片展示 */}
+                              {/* 现代化图片展示 - hover效果只在图片实际像素区域触发 */}
                               <div className="relative">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={block.content}
                                   alt={block.alt || '图片'}
-                                  className="max-w-full h-auto block transition-transform duration-200 group-hover:scale-105"
+                                  className="max-w-full h-auto block transition-transform duration-200 hover:scale-105 group"
                                   style={{
                                     maxHeight: '400px',
                                     width: 'auto',
@@ -1048,8 +1051,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                     `;
                                   }}
                                 />
-                                {/* 图片hover遮罩层 - 定义hover效果的精确触发范围 */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                                {/* 图片hover遮罩层 - 精确覆盖图片实际像素区域 */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
                               </div>
                             </div>
                           </div>
