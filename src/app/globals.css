@@ -153,17 +153,15 @@ html, body, #__next {
   }
 }
 
-/* 文本框滚动条隐藏样式 - 用于textarea元素 */
 .textarea-no-scrollbar {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .textarea-no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
 }
 
-/* 通用滚动条样式 - 用于overflow-auto元素 */
 .overflow-auto::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -184,7 +182,6 @@ html, body, #__next {
   background-color: var(--neutral-400);
 }
 
-/* 深色模式滚动条样式 */
 @media (prefers-color-scheme: dark) {
   .overflow-auto::-webkit-scrollbar-track {
     background: var(--neutral-800);
@@ -263,7 +260,6 @@ html, body, #__next {
   animation: scale-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 脉冲动画 */
 @keyframes pulse-modern {
   0%, 100% {
     opacity: 1;
@@ -276,8 +272,6 @@ html, body, #__next {
 .animate-pulse-modern {
   animation: pulse-modern 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
-
-/* 文本截断样式 - 支持多行文本省略 */
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -303,21 +297,16 @@ html, body, #__next {
   overflow: hidden;
 }
 
-/* Markdown编辑器专用样式 - 使用flex布局确保高度一致性和布局稳定性 */
 .markdown-editor-textarea {
   box-sizing: border-box;
   line-height: 1.6;
   font-family: var(--font-mono);
-  /* 文本渲染优化 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Markdown编辑器高度继承设置 - 让textarea继承容器的固定高度 */
 textarea[data-markdown-editor="true"] {
-  /* 让textarea继承容器高度，而不是设置自己的固定高度 */
   box-sizing: border-box !important;
-  /* 确保textarea能够正确填满容器 */
   height: 100% !important;
   min-height: 100% !important;
   max-height: 100% !important;

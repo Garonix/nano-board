@@ -116,16 +116,10 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
     }
   };
 
-  /**
-   * 处理从本地文本文件恢复内容（修复光标位置插入）
-   */
   const handleRestoreLocalTextFile = async (fileName: string): Promise<void> => {
     try {
       const content = await getTextFileContent(fileName);
       if (content) {
-        // 统一使用 onInsertTextContent 函数，它会根据模式正确处理插入位置
-        // 在普通模式下：智能插入内容（优先使用空文本框）
-        // 在 Markdown 模式下：在当前光标位置插入内容
         onInsertTextContent(content);
         onCloseHistorySidebar();
         console.log(`文本文件恢复成功: ${fileName}`);
@@ -137,12 +131,9 @@ export const FileOperationsManager: React.FC<FileOperationsManagerProps> = ({
     }
   };
 
-  /**
-   * 处理插入图片缓存（添加立即保存机制和优化空文本框处理）
-   */
   const handleInsertLocalImageFile = (imagePath: string, fileName: string): void => {
     try {
-      const altText = fileName.replace(/\.[^/.]+$/, ''); // 移除扩展名作为alt文本
+      const altText = fileName.replace(/\.[^/.]+$/, '');
 
       if (isMarkdownMode) {
         // 在Markdown模式下插入图片

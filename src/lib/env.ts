@@ -1,32 +1,15 @@
 /**
  * 环境变量配置和类型定义
- * 统一管理应用的环境变量，提供类型安全和默认值
  */
 
-/**
- * 环境变量接口定义
- */
 export interface AppEnvironment {
-  /** 是否启用密码验证功能 */
   enablePasswordAuth: boolean;
-  /** 自定义访问密码（可选） */
   accessPassword?: string;
-  /** 当前环境类型 */
   nodeEnv: 'development' | 'production' | 'test';
-  /** 应用端口 */
   port: number;
-  /** 文件上传大小限制（字节） */
   maxFileSize: number;
-  /** 文件数量限制 */
   maxFileCount: number;
 }
-
-/**
- * 解析布尔值环境变量
- * @param value 环境变量值
- * @param defaultValue 默认值
- * @returns 布尔值
- */
 function parseBooleanEnv(value: string | undefined, defaultValue: boolean = false): boolean {
   if (!value) return defaultValue;
   return value.toLowerCase() === 'true' || value === '1';

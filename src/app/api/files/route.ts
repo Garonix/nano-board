@@ -9,18 +9,12 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { LocalImageFileItem, LocalTextFileItem, LocalGeneralFileItem } from '@/types';
 
-// 目录配置
 const PICS_DIR = path.join(process.cwd(), 'data', 'pics');
 const TEXTS_DIR = path.join(process.cwd(), 'data', 'texts');
 const FILES_DIR = path.join(process.cwd(), 'data', 'files');
 
-// 支持的文件扩展名
 const SUPPORTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const SUPPORTED_TEXT_EXTENSIONS = ['.txt'];
-
-/**
- * 确保目录存在
- */
 async function ensureDirectoryExists(dirPath: string): Promise<void> {
   try {
     await fs.access(dirPath);

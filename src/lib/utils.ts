@@ -1,6 +1,5 @@
 /**
  * 工具函数库
- * @description 提供基础的工具函数集合
  */
 
 import { type ClassValue, clsx } from 'clsx';
@@ -10,21 +9,10 @@ export interface DeleteResult {
   error?: string;
 }
 
-/**
- * 合并CSS类名
- * @param inputs - 类名输入
- * @returns 合并后的类名字符串
- */
 export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
-/**
- * 防抖函数
- * @param func - 要防抖的函数
- * @param wait - 等待时间(ms)
- * @returns 防抖后的函数
- */
 export function debounce(
   func: (...args: unknown[]) => void,
   wait: number
@@ -37,20 +25,10 @@ export function debounce(
   };
 }
 
-/**
- * 检查是否为图片文件
- * @param file - 文件对象
- * @returns 是否为图片
- */
 export function isImageFile(file: File): boolean {
   return file.type.startsWith('image/');
 }
 
-/**
- * 将文件转换为Base64字符串
- * @param file - 文件对象
- * @returns Base64字符串
- */
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -60,11 +38,6 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
-/**
- * 格式化文件大小显示
- * @param bytes 字节数
- * @returns 格式化的文件大小字符串
- */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
 
@@ -75,19 +48,10 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-/**
- * 检查是否为通用文件（非图片）
- * @param file 文件对象
- * @returns 是否为通用文件
- */
 export function isGeneralFile(file: File): boolean {
   return !isImageFile(file) && file.size > 0;
 }
 
-/**
- * 生成唯一的文件ID
- * @returns 唯一ID字符串
- */
 export function generateFileId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
@@ -118,19 +82,12 @@ export function formatTimestamp(date: Date): string {
   });
 }
 
-/**
- * 生成内容预览标题
- * @param content 内容字符串
- * @param maxLength 最大长度
- * @returns 预览标题
- */
 export function generateContentTitle(content: string, maxLength: number = 30): string {
   if (!content.trim()) return '空白内容';
 
-  // 移除图片标记和多余空白
   const cleanContent = content
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '[图片]') // Markdown图片
-    .replace(/\[图片: [^\]]+\]\([^)]+\)/g, '[图片]') // 普通图片
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '[图片]')
+    .replace(/\[图片: [^\]]+\]\([^)]+\)/g, '[图片]')
     .replace(/\s+/g, ' ')
     .trim();
 

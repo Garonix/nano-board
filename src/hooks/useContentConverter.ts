@@ -1,36 +1,22 @@
 /**
  * 内容转换Hook
- * @description 处理blocks和文本内容之间的双向转换
  */
 
 import { useCallback } from 'react';
 import { ContentBlock, ImageData } from '@/types';
 
-/** 普通模式文本块分隔符 */
 const TEXT_BLOCK_SEPARATOR = '{}';
 
-/**
- * 内容转换Hook
- * @param isMarkdownMode - 是否为Markdown模式
- * @returns 内容转换函数集合
- */
 export const useContentConverter = (isMarkdownMode: boolean) => {
 
-  /**
-   * 将blocks转换为存储内容
-   * @param blocks - 内容块数组
-   * @returns 转换后的存储内容
-   */
   const blocksToContent = useCallback((blocks: ContentBlock[]): string => {
     if (isMarkdownMode) {
-      // Markdown模式：使用文本格式存储
       return blocks.map(block => {
         if (block.type === 'text') {
           return block.content;
         } else if (block.type === 'image') {
           return `![${block.alt || '图片'}](${block.content})`;
         } else if (block.type === 'file') {
-          // Markdown模式暂不支持文件块，转换为文本描述
           return `[文件: ${block.fileName || '未知文件'}]`;
         }
         return '';
@@ -53,11 +39,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
     }
   }, [isMarkdownMode]);
 
-  /**
-   * 将存储内容转换为blocks
-   * @param content - 存储内容
-   * @returns 转换后的内容块数组
-   */
   const contentToBlocks = useCallback((content: string): ContentBlock[] => {
     if (!content.trim()) {
       return [{ id: '1', type: 'text', content: '' }];
@@ -67,16 +48,13 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
     let blockId = 1;
 
     if (isMarkdownMode) {
-      // Markdown 模式：使用文本格式解析
       const lines = content.split('\n');
       let currentText = '';
 
       for (const line of lines) {
-        // 检测Markdown图片语法
         const markdownImageMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
 
         if (markdownImageMatch) {
-          // 如果有累积的文本，先添加文本块
           if (currentText.trim()) {
             blocks.push({
               id: String(blockId++),
@@ -86,7 +64,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
             currentText = '';
           }
 
-          // 添加图片块
           blocks.push({
             id: String(blockId++),
             type: 'image',
@@ -98,7 +75,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
         }
       }
 
-      // 添加剩余的文本
       if (currentText.trim() || blocks.length === 0) {
         blocks.push({
           id: String(blockId++),
@@ -126,21 +102,17 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
           }));
         }
       } catch {
-        // JSON解析失败，使用文本格式解析（向后兼容）
+      } catch {
       }
 
-      // 向后兼容：使用分隔符来识别独立的文本块
       let parts: string[];
 
-      // 优先尝试新的大括号分隔符
       if (content.includes(`\n${TEXT_BLOCK_SEPARATOR}\n`)) {
         parts = content.split(`\n${TEXT_BLOCK_SEPARATOR}\n`);
       }
-      // 向后兼容：支持旧的分隔符格式
       else if (content.includes('\n---TEXT_BLOCK_SEPARATOR---\n')) {
         parts = content.split('\n---TEXT_BLOCK_SEPARATOR---\n');
       }
-      // 如果没有分隔符，将整个内容作为单个块
       else {
         parts = [content];
       }
@@ -149,15 +121,11 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
         const trimmedPart = part.trim();
         if (!trimmedPart) continue;
 
-        // 检测普通图片语法
         const normalImageMatch = trimmedPart.match(/^\[图片: ([^\]]+)\]\(([^)]+)\)$/);
-        // 检测文件语法
         const normalFileMatch = trimmedPart.match(/^\[文件: ([^\]]+)\]\(([^)]+)\)$/);
 
         if (normalImageMatch) {
-          // 检查是否是文件下载路径（误标记为图片的情况）
           if (normalImageMatch[2].includes('/api/files/download')) {
-            // 这实际上是一个文件，转换为文件块
             blocks.push({
               id: String(blockId++),
               type: 'file',
@@ -165,7 +133,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
               fileName: normalImageMatch[1]
             });
           } else {
-            // 真正的图片块
             blocks.push({
               id: String(blockId++),
               type: 'image',
@@ -174,7 +141,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
             });
           }
         } else if (normalFileMatch) {
-          // 添加文件块（向后兼容旧格式）
           blocks.push({
             id: String(blockId++),
             type: 'file',
@@ -182,7 +148,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
             fileName: normalFileMatch[1]
           });
         } else {
-          // 添加文本块
           blocks.push({
             id: String(blockId++),
             type: 'text',
@@ -191,7 +156,6 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
         }
       }
 
-      // 如果没有解析出任何块，创建一个空文本块
       if (blocks.length === 0) {
         blocks.push({
           id: String(blockId++),
@@ -204,7 +168,7 @@ export const useContentConverter = (isMarkdownMode: boolean) => {
     return blocks;
   }, [isMarkdownMode]);
 
-  // 提取当前blocks中的图片数据
+
   const extractImagesFromBlocks = useCallback((blocks: ContentBlock[]): ImageData[] => {
     return blocks
       .filter(block => block.type === 'image')

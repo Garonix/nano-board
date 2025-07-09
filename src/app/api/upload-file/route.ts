@@ -1,6 +1,5 @@
 /**
  * 文件上传API
- * @description 处理通用文件的上传、验证和保存功能
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,9 +10,6 @@ import { isSupportedFileType } from '@/lib/fileIcons';
 
 const FILES_DIR = path.join(process.cwd(), 'data', 'files');
 
-/**
- * 确保文件目录存在
- */
 async function ensureFilesDir(): Promise<void> {
   try {
     await fs.access(FILES_DIR);
@@ -22,11 +18,7 @@ async function ensureFilesDir(): Promise<void> {
   }
 }
 
-/**
- * 生成安全的文件名（避免冲突和安全问题）
- * @param originalName 原始文件名
- * @returns 安全的文件名
- */
+
 async function generateSafeFileName(originalName: string): Promise<string> {
   const ext = path.extname(originalName);
   const baseName = path.basename(originalName, ext)
@@ -39,32 +31,23 @@ async function generateSafeFileName(originalName: string): Promise<string> {
   return `${baseName}_${timestamp}_${randomSuffix}${ext}`;
 }
 
-/**
- * 验证文件上传
- * @param file 文件对象
- * @returns 验证结果
- */
 async function validateFileUpload(file: File): Promise<void> {
   const env = getAppEnvironment();
-  
-  // 检查文件大小限制
+
   if (file.size > env.maxFileSize) {
     throw new Error(`文件大小超过限制 (${Math.round(env.maxFileSize / 1024 / 1024)}MB)`);
   }
-  
-  // 检查文件类型是否支持
+
   if (!isSupportedFileType(file.name)) {
     throw new Error('不支持的文件类型，请上传非图片类型的文件');
   }
-  
-  // 检查文件数量限制
+
   try {
     const existingFiles = await fs.readdir(FILES_DIR);
     if (existingFiles.length >= env.maxFileCount) {
       throw new Error(`文件数量超过限制 (${env.maxFileCount}个)`);
     }
   } catch (error) {
-    // 目录不存在时忽略错误
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       throw error;
     }
@@ -90,19 +73,14 @@ export async function POST(request: NextRequest) {
     
     // 验证文件
     await validateFileUpload(file);
-    
-    // 确保目录存在
+
     await ensureFilesDir();
-    
-    // 生成安全文件名
+
     const safeFileName = await generateSafeFileName(file.name);
     const filePath = path.join(FILES_DIR, safeFileName);
-    
-    // 保存文件
+
     const buffer = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(filePath, buffer);
-    
-    // 返回文件信息
     return NextResponse.json({
       success: true,
       fileName: safeFileName,
@@ -122,9 +100,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * GET - 获取文件列表和统计信息
- */
+
 export async function GET() {
   try {
     await ensureFilesDir();
@@ -161,9 +137,7 @@ export async function GET() {
   }
 }
 
-/**
- * DELETE - 删除文件
- */
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -195,8 +169,7 @@ export async function DELETE(request: NextRequest) {
         { status: 404 }
       );
     }
-    
-    // 删除文件
+
     await fs.unlink(filePath);
     
     return NextResponse.json({

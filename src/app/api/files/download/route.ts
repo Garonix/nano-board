@@ -1,6 +1,5 @@
 /**
  * 文件下载API
- * @description 处理文件下载请求，提供安全的文件访问
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,11 +8,7 @@ import path from 'path';
 
 const FILES_DIR = path.join(process.cwd(), 'data', 'files');
 
-/**
- * 获取文件的MIME类型
- * @param fileName 文件名
- * @returns MIME类型
- */
+
 function getMimeType(fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
   

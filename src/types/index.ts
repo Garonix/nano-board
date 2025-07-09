@@ -1,41 +1,33 @@
 /**
  * 类型定义
- * @description 白板应用的核心类型定义
  */
 
-/** 白板模式 */
 export type BoardMode = 'normal' | 'markdown';
 
-/** 白板内容 */
 export interface BoardContent {
   content: string;
   lastModified: Date;
 }
 
-/** 文件类型枚举 */
 export type FileType = 'image' | 'text' | 'file';
 
-/** 内容块 */
 export interface ContentBlock {
   id: string;
-  type: 'text' | 'image' | 'file';  // 新增 'file' 类型
+  type: 'text' | 'image' | 'file';
   content: string;
   alt?: string;
-  // 文件特有属性
   fileName?: string;
   fileSize?: number;
   mimeType?: string;
   extension?: string;
 }
 
-/** 图片数据 */
 export interface ImageData {
   id: string;
   src: string;
   alt: string;
 }
 
-/** 本地文件项基础类型 */
 export interface LocalFileItem {
   id: string;
   fileName: string;

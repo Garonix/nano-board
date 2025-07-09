@@ -1,6 +1,5 @@
 /**
  * 文件类型图标系统
- * @description 基于文件扩展名的图标映射系统，为不同类型文件提供视觉标识
  */
 
 import path from 'path';
@@ -72,42 +71,21 @@ export const FILE_TYPE_ICONS: Record<string, FileTypeIcon> = {
   'default': { icon: '📎', color: 'text-gray-600', bgColor: 'bg-gray-100' }
 };
 
-/**
- * 根据文件名获取文件类型图标
- * @param fileName 文件名
- * @returns 文件类型图标信息
- */
 export function getFileTypeIcon(fileName: string): FileTypeIcon {
   const extension = path.extname(fileName).toLowerCase();
   return FILE_TYPE_ICONS[extension] || FILE_TYPE_ICONS.default;
 }
 
-/**
- * 检查是否为支持的文件类型（非图片类型）
- * @param fileName 文件名
- * @returns 是否为支持的通用文件类型
- */
 export function isSupportedFileType(fileName: string): boolean {
   const extension = path.extname(fileName).toLowerCase();
-  // 排除图片类型（已有专门处理）
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
   return !imageExtensions.includes(extension);
 }
-
-/**
- * 获取文件扩展名（不含点号）
- * @param fileName 文件名
- * @returns 文件扩展名
- */
 export function getFileExtension(fileName: string): string {
   return path.extname(fileName).toLowerCase().slice(1);
 }
 
-/**
- * 根据MIME类型获取文件扩展名
- * @param mimeType MIME类型
- * @returns 文件扩展名
- */
+
 export function getExtensionFromMimeType(mimeType: string): string {
   const mimeToExt: Record<string, string> = {
     'application/pdf': '.pdf',

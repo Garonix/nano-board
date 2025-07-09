@@ -1,6 +1,5 @@
 /**
  * 图片上传API
- * @description 处理图片文件的上传、保存和管理
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,9 +8,6 @@ import path from 'path';
 
 const PICS_DIR = path.join(process.cwd(), 'data', 'pics');
 
-/**
- * 确保图片目录存在
- */
 async function ensurePicsDir(): Promise<void> {
   try {
     await fs.access(PICS_DIR);
@@ -20,10 +16,6 @@ async function ensurePicsDir(): Promise<void> {
   }
 }
 
-/**
- * 获取当前图片数量
- * @returns 图片文件数量
- */
 async function getCurrentImageCount(): Promise<number> {
   try {
     const files = await fs.readdir(PICS_DIR);
@@ -37,24 +29,13 @@ async function getCurrentImageCount(): Promise<number> {
   }
 }
 
-/**
- * 生成标准化文件名
- * @param extension - 文件扩展名
- * @returns 格式为yy-mm-dd-index的文件名
- */
 async function generateStandardizedFileName(extension: string): Promise<string> {
   const now = new Date();
 
-  // 获取年份后两位
   const yy = now.getFullYear().toString().slice(-2);
-
-  // 获取月份（补零）
   const mm = (now.getMonth() + 1).toString().padStart(2, '0');
-
-  // 获取日期（补零）
   const dd = now.getDate().toString().padStart(2, '0');
 
-  // 获取当前图片数量并生成序号
   const currentCount = await getCurrentImageCount();
   const index = (currentCount + 1).toString().padStart(3, '0');
 

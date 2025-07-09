@@ -1,6 +1,5 @@
 /**
  * 应用根布局
- * @description 配置全局字体、元数据和HTML结构
  */
 
 import type { Metadata } from "next";

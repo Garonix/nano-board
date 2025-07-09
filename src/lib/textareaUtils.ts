@@ -1,13 +1,5 @@
 /**
  * 文本框工具函数
- * @description 处理文本框高度自适应和自动滚动功能
- */
-
-/**
- * 自动调整文本框高度
- * @param textarea - 文本框元素
- * @param _content - 内容（保留参数用于兼容性）
- * @param isSingleTextBlock - 是否为单个文本框场景
  */
 export const adjustTextareaHeight = (
   textarea: HTMLTextAreaElement,
@@ -32,10 +24,7 @@ export const adjustTextareaHeight = (
   }
 };
 
-/**
- * 批量更新所有文本框高度
- * @param isSingleTextBlock - 是否为单个文本框场景
- */
+
 export const updateAllTextareasHeight = (isSingleTextBlock: boolean) => {
   const textareas = document.querySelectorAll('textarea:not([data-markdown-editor])');
   textareas.forEach((textarea) => {
@@ -44,12 +33,6 @@ export const updateAllTextareasHeight = (isSingleTextBlock: boolean) => {
   });
 };
 
-/**
- * 防抖函数 - 用于优化自动滚动性能
- * @param func 要防抖的函数
- * @param delay 防抖延迟时间（毫秒）
- * @returns 防抖后的函数
- */
 const debounce = (func: (elementId: string, delay?: number) => void, delay: number) => {
   let timeoutId: NodeJS.Timeout;
   return (elementId: string, scrollDelay?: number) => {
@@ -60,19 +43,9 @@ const debounce = (func: (elementId: string, delay?: number) => void, delay: numb
 
 
 
-/**
- * 自动滚动到新增内容 - 普通模式专用
- * @description 智能滚动策略：
- * - 优先使用智能元素滚动，确保新增内容在可视区域内
- * - 如果找不到目标元素，则降级到底部滚动
- * - 支持防抖机制，避免频繁滚动影响用户体验
- * @param elementId 新增元素的ID或data-block-id
- * @param delay 延迟时间（毫秒），用于等待DOM更新完成
- */
 export const autoScrollToNewContent = (elementId: string, delay: number = 100) => {
   setTimeout(() => {
     try {
-      // 查找目标元素 - 支持多种选择器
       let targetElement = document.getElementById(elementId);
       if (!targetElement) {
         targetElement = document.querySelector(`[data-block-id="${elementId}"]`) as HTMLElement;
@@ -84,21 +57,16 @@ export const autoScrollToNewContent = (elementId: string, delay: number = 100) =
         return;
       }
 
-      // 使用智能滚动到元素，确保新增内容在可视区域内
       scrollToElement(targetElement, true);
 
     } catch (error) {
       console.error('自动滚动出错:', error);
-      // 出错时降级到底部滚动
       scrollToBottom(true);
     }
   }, delay);
 };
 
-/**
- * 防抖版本的自动滚动函数 - 避免频繁触发
- * 适用于连续输入或快速添加内容的场景
- */
+
 export const debouncedAutoScrollToNewContent = debounce(autoScrollToNewContent, 150);
 
 /**

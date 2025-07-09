@@ -1,6 +1,5 @@
 /**
  * 双模式白板编辑器
- * @description 支持普通模式和Markdown模式的编辑器组件
  */
 
 'use client';
@@ -37,10 +36,7 @@ import { SaveStatusContainer } from './SaveStatusIndicator';
 import { DragDropOverlay } from './DragDropOverlay';
 import { LoadingSpinner } from './LoadingSpinner';
 
-/**
- * 双模式白板编辑器主组件
- * @param className - 自定义样式类名
- */
+
 export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   const {
     isConfirmOpen,
@@ -509,20 +505,16 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       const emptyTextBlock = normalBlocks.find(block => block.type === 'text' && block.content.trim() === '');
 
       if (emptyTextBlock) {
-        // 如果存在空文本框，直接填入内容
         setNormalBlocks(prev => prev.map(block =>
           block.id === emptyTextBlock.id ? { ...block, content } : block
         ));
         setFocusedBlockId(emptyTextBlock.id);
-        // 自动滚动到填入内容的文本框
         autoScrollToNewContent(emptyTextBlock.id, 100);
 
-        // 触发自动保存
         setTimeout(() => {
           normalBlockSave.saveOnImageInsert(emptyTextBlock.id);
         }, 100);
       } else {
-        // 如果不存在空文本框，创建新的文本框
         const newTextBlock: ContentBlock = {
           id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           type: 'text',
@@ -530,10 +522,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
         };
         setNormalBlocks(prev => [...prev, newTextBlock]);
         setFocusedBlockId(newTextBlock.id);
-        // 自动滚动到新创建的文本框
         autoScrollToNewContent(newTextBlock.id, 150);
 
-        // 触发自动保存
         setTimeout(() => {
           normalBlockSave.saveOnImageInsert(newTextBlock.id);
         }, 100);

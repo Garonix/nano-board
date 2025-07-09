@@ -1,20 +1,16 @@
-# Node.js
 node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Next.js
 .next/
 out/
 build/
 dist/
 
-# 环境变量
 .env*
 
-# 开发工具
 .vscode/
 .idea/
 *.swp
@@ -23,18 +19,15 @@ dist/
 *.tsbuildinfo
 .eslintcache
 
-# 版本控制
 .git/
 .gitignore
 .gitattributes
 
-# 文档
 README.md
 CHANGELOG.md
 LICENSE
 docs/
 
-# 测试
 coverage/
 .nyc_output/
 test/
@@ -45,16 +38,13 @@ __tests__/
 *.spec.js
 *.spec.ts
 
-# 日志
 logs/
 *.log
 
-# 临时文件
 .tmp/
 temp/
 tmp/
 
-# 系统文件
 .DS_Store
 .DS_Store?
 ._*
@@ -63,31 +53,25 @@ tmp/
 ehthumbs.db
 Thumbs.db
 
-# Docker
 Dockerfile*
 docker-compose*.yml
 docker-compose*.yaml
 .dockerignore
 
-# CI/CD
 .github/
 .gitlab-ci.yml
 .travis.yml
 .circleci/
 
-# 包管理器
 yarn.lock
 pnpm-lock.yaml
 
-# 编辑器配置
 .editorconfig
 
-# 工具配置
 .prettierrc*
 .eslintrc*
 jest.config.*
 tailwind.config.*
 
-# 数据文件
 data/
 uploads/

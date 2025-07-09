@@ -280,16 +280,13 @@ export const useEditorState = () => {
   // ==================== 返回值 ====================
   
   return {
-    // 状态
     editorState,
     isSingleTextBlock,
 
-    // 批量更新函数（新增的优化功能）
     updateCore,
     updateUI,
     updateFile,
 
-    // 向后兼容的状态更新函数
     setBlocks,
     setIsMarkdownMode,
     setShowMarkdownPreview,
@@ -306,15 +303,13 @@ export const useEditorState = () => {
     setLocalGeneralFiles,
     setFileHistoryLoadingState,
 
-    // 业务逻辑函数
     updateBlockContent,
     deleteBlock,
     addTextBlockAfter,
     clearAllBlocks,
     insertTextContent,
 
-    // 辅助函数
-    findFirstEmptyTextBlock: useCallback((blocks: ContentBlock[]) => 
+    findFirstEmptyTextBlock: useCallback((blocks: ContentBlock[]) =>
       blocks.find(block => block.type === 'text' && block.content.trim() === '') || null,
     []),
     

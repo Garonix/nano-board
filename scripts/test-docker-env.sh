@@ -46,7 +46,6 @@ test_api() {
     fi
 }
 
-# 检查Docker容器状态
 echo "1. 检查Docker容器状态..."
 if ! docker ps | grep -q nano-board; then
     echo -e "${RED}错误: nano-board容器未运行${NC}"
@@ -55,13 +54,11 @@ if ! docker ps | grep -q nano-board; then
 fi
 echo -e "${GREEN}✓ 容器运行正常${NC}"
 
-# 检查容器内环境变量
 echo ""
 echo "2. 检查容器内环境变量..."
 echo "ENABLE_PASSWORD_AUTH=$(docker exec nano-board sh -c 'echo $ENABLE_PASSWORD_AUTH')"
 echo "ACCESS_PASSWORD=$(docker exec nano-board sh -c 'echo $ACCESS_PASSWORD')"
 
-# 检查.env文件挂载
 echo ""
 echo "3. 检查.env文件挂载..."
 if docker exec nano-board test -f /app/.env; then

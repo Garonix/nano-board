@@ -9,10 +9,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { TopNavbarProps } from '@/types';
 
-/**
- * 顶部导航栏组件
- * @param props - 导航栏属性
- */
+
 export const TopNavbar: React.FC<TopNavbarProps> = ({
   isMarkdownMode,
   showMarkdownPreview,
