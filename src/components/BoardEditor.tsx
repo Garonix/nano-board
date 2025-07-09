@@ -420,7 +420,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       const filtered = prev.filter(block => block.id !== blockId);
       if (filtered.length === 0) {
         // 如果删除后没有块了，创建新的空文本框
-        const newBlockId = Date.now().toString();
+        const newBlockId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         const newBlock: ContentBlock = { id: newBlockId, type: 'text', content: '' };
 
         // 自动滚动到新创建的文本框
@@ -444,7 +444,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   // 添加文本块函数
   const addNormalTextBlockAfter = useCallback((blockId: string) => {
     const newBlock: ContentBlock = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       type: 'text',
       content: ''
     };
@@ -524,7 +524,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       } else {
         // 如果不存在空文本框，创建新的文本框
         const newTextBlock: ContentBlock = {
-          id: Date.now().toString(),
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           type: 'text',
           content
         };
@@ -580,7 +580,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
   } = useTextManager(
     insertTextContentAdapted,
     refreshFileHistory,
-    setIsUploadingText
+    setIsUploadingText,
+    focusedBlockId
   );
 
   // 滚动同步 Hook - 使用改进版本
@@ -655,10 +656,18 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
       await handleImagePaste(e);
     } else {
       // 如果没有图片，处理文本粘贴
-      // 在普通模式下，文本粘贴会通过useTextManager创建新的文本框
-      await handleTextPaste(e);
+      // 检查是否有聚焦的文本框
+      const hasFocusedTextBox = focusedBlockId && focusedBlockId.trim() !== '';
+
+      if (hasFocusedTextBox) {
+        // 如果有聚焦的文本框，使用默认粘贴行为（插入到光标位置）
+        await handleTextPaste(e, false);
+      } else {
+        // 如果没有聚焦的文本框，创建新的文本框
+        await handleTextPaste(e, true);
+      }
     }
-  }, [handleImagePaste, handleTextPaste]);
+  }, [handleImagePaste, handleTextPaste, focusedBlockId]);
 
   // 拖拽处理 Hook
   const { handleDragOver, handleDragLeave, handleDrop, cleanup: cleanupDragAndDrop } = useDragAndDrop(
@@ -708,7 +717,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     });
 
     if (confirmed) {
-      setNormalBlocks([{ id: Date.now().toString(), type: 'text', content: '' }]);
+      setNormalBlocks([{ id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`, type: 'text', content: '' }]);
       try {
         await fetch('/api/board', {
           method: 'POST',
@@ -730,7 +739,7 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
     });
 
     if (confirmed) {
-      setMarkdownBlocks([{ id: Date.now().toString(), type: 'text', content: '' }]);
+      setMarkdownBlocks([{ id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`, type: 'text', content: '' }]);
       try {
         await fetch('/api/board', {
           method: 'POST',
@@ -851,10 +860,24 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
 
           {/* 现代化主编辑区域 */}
           <div
-            className="flex-1 flex overflow-hidden relative bg-white"
+            className="flex-1 flex overflow-hidden relative bg-white outline-none"
+            tabIndex={0}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onPaste={(e) => {
+              // 只有当没有聚焦的文本框时才在容器级别处理粘贴事件
+              // 避免与文本框的粘贴事件冲突
+              if (!focusedBlockId || focusedBlockId.trim() === '') {
+                handleCombinedPaste(e);
+              }
+            }}
+            onClick={(e) => {
+              // 点击空白区域时清除文本框焦点状态
+              if (e.target === e.currentTarget) {
+                setFocusedBlockId('');
+              }
+            }}
           >
             {/* 拖拽提示覆盖层 */}
             <DragDropOverlay isDragOver={isDragOver} />
@@ -870,10 +893,26 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
               }}
             >
               {/* 普通模式编辑器内联内容 */}
-              <div className="w-full h-full overflow-auto p-2">
+              <div
+                className="w-full h-full overflow-auto p-2"
+                onClick={(e) => {
+                  // 点击空白区域时清除文本框焦点状态
+                  if (e.target === e.currentTarget) {
+                    setFocusedBlockId('');
+                  }
+                }}
+              >
                 {/* 添加响应式左右边距，缩减文本框宽度以提升阅读体验，保持居中显示 */}
                 {/* 大屏幕：左右各300px边距，中等屏幕：150px，小屏幕：20px */}
-                <div className="max-w-none space-y-3 mx-auto px-5 md:px-[150px] xl:px-[300px] min-w-0">
+                <div
+                  className="max-w-none space-y-3 mx-auto px-5 md:px-[150px] xl:px-[300px] min-w-0"
+                  onClick={(e) => {
+                    // 点击空白区域时清除文本框焦点状态
+                    if (e.target === e.currentTarget) {
+                      setFocusedBlockId('');
+                    }
+                  }}
+                >
                   {normalBlocks.map((block, index) => {
                     return (
                       <div key={block.id} className="relative group">
@@ -964,7 +1003,12 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                     debouncedAutoScrollToNewContent(block.id, 50);
                                   }
                                 }}
-                                onPaste={handleCombinedPaste}
+                                onPaste={(e) => {
+                                  // 文本框粘贴事件：只有当该文本框聚焦时才处理
+                                  if (focusedBlockId === block.id) {
+                                    handleCombinedPaste(e);
+                                  }
+                                }}
                                 onKeyDown={(e) => handleKeyDown(e, block.id)}
                                 onFocus={(e) => {
                                   setFocusedBlockId(block.id);
@@ -975,7 +1019,8 @@ export const BoardEditor: React.FC<BoardEditorProps> = ({ className }) => {
                                   }, 0);
                                 }}
                                 onBlur={() => {
-                                  // 失焦时触发保存
+                                  // 失焦时清除焦点状态并触发保存
+                                  setFocusedBlockId('');
                                   normalBlockSave.saveOnBlur(block.id);
                                 }}
                                 className={cn(

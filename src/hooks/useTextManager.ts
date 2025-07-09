@@ -20,12 +20,14 @@ const isTextFile = (file: File): boolean => {
  * @param onInsertTextContent 插入文本内容的回调函数
  * @param refreshFileHistory 刷新文件历史的回调函数
  * @param setIsUploadingText 设置文本上传状态的回调函数
+ * @param focusedBlockId 当前聚焦的文本框ID
  * @returns 文本管理相关函数
  */
 export const useTextManager = (
   onInsertTextContent?: (content: string) => void,
   refreshFileHistory?: () => Promise<void>,
-  setIsUploadingText?: (uploading: boolean) => void
+  setIsUploadingText?: (uploading: boolean) => void,
+  focusedBlockId?: string
 ) => {
 
   /** 短文本长度阈值 - 超过此长度的文本将保存为文件 */
@@ -78,12 +80,19 @@ export const useTextManager = (
   /**
    * 处理文本粘贴事件
    * @param e 粘贴事件对象
+   * @param shouldCreateNewBlock 是否应该创建新的文本框（当没有聚焦的文本框时）
    */
-  const handleTextPaste = useCallback(async (e: React.ClipboardEvent) => {
+  const handleTextPaste = useCallback(async (e: React.ClipboardEvent, shouldCreateNewBlock: boolean = true) => {
     // 获取粘贴的文本内容
     const textContent = e.clipboardData.getData('text/plain');
 
     if (textContent && textContent.trim()) {
+      // 如果有聚焦的文本框且不需要创建新文本框，使用默认粘贴行为（插入到光标位置）
+      if (focusedBlockId && focusedBlockId.trim() !== '' && !shouldCreateNewBlock) {
+        // 不阻止默认行为，让浏览器处理粘贴到光标位置
+        return;
+      }
+
       // 如果文本内容较长，自动保存为文件
       if (textContent.length > SHORT_TEXT_THRESHOLD) {
         e.preventDefault();
@@ -102,16 +111,17 @@ export const useTextManager = (
             setIsUploadingText(false);
           }
         }
-      } else {
-        // 短文本：阻止默认粘贴行为，通过回调函数在白板中创建文本框
+      } else if (shouldCreateNewBlock) {
+        // 短文本且需要创建新文本框：阻止默认粘贴行为，通过回调函数在白板中创建文本框
         e.preventDefault();
 
         if (onInsertTextContent) {
           onInsertTextContent(textContent);
         }
       }
+      // 如果是短文本但不需要创建新文本框（在聚焦文本框内），则使用默认粘贴行为
     }
-  }, [saveTextToFile, refreshFileHistory, setIsUploadingText, onInsertTextContent]);
+  }, [saveTextToFile, refreshFileHistory, setIsUploadingText, onInsertTextContent, focusedBlockId]);
 
   /**
    * 处理文本拖拽事件（支持文本内容和文本文件）
