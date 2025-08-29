@@ -33,10 +33,11 @@ docker build -t nano-board .
 # 运行容器
 docker run -p 3000:3000 -v $(pwd)/data:/app/data nano-board
 
-# 启用密码验证
+# 启用密码验证和存储限制
 docker run -p 3000:3000 \
   -e ENABLE_PASSWORD_AUTH=true \
   -e ACCESS_PASSWORD=your_password \
+  -e MAX_DATA_DIR_SIZE=1073741824 \
   -v $(pwd)/data:/app/data \
   nano-board
 ```
@@ -60,8 +61,14 @@ docker run -p 3000:3000 \
 
 ### 环境变量
 
+#### 安全配置
 - `ENABLE_PASSWORD_AUTH`: 是否启用密码验证 (true/false)
 - `ACCESS_PASSWORD`: 访问密码 (默认: nano2024)
+
+#### 存储限制配置
+- `MAX_FILE_SIZE`: 单个文件最大大小，字节 (默认: 10485760 = 10MB)
+- `MAX_FILE_COUNT`: 最大文件数量 (默认: 100)
+- `MAX_DATA_DIR_SIZE`: data目录总大小限制，字节 (默认: 524288000 = 500MB)
 
 ### 配置示例
 
@@ -69,9 +76,34 @@ docker run -p 3000:3000 \
 # 开发环境 - 不启用密码
 ENABLE_PASSWORD_AUTH=false
 
-# 生产环境 - 启用密码
+# 生产环境 - 启用密码和存储限制
 ENABLE_PASSWORD_AUTH=true
 ACCESS_PASSWORD=your_secure_password
+MAX_FILE_SIZE=10485760          # 10MB
+MAX_FILE_COUNT=100              # 100个文件
+MAX_DATA_DIR_SIZE=524288000     # 500MB总限制
+```
+
+### Docker Compose 配置
+
+```yaml
+version: '3.8'
+services:
+  nano-board:
+    image: garonix/nano-board:latest
+    container_name: nano-board
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - ENABLE_PASSWORD_AUTH=true
+      - ACCESS_PASSWORD=nano2025
+      - MAX_FILE_SIZE=10485760
+      - MAX_FILE_COUNT=100
+      - MAX_DATA_DIR_SIZE=524288000
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
 ```
 
 ## 技术栈

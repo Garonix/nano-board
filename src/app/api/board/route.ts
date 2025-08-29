@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveBoardContent, loadBoardContent, getBoardStorageStatus } from '@/lib/storage';
 import { BoardMode } from '@/types';
+import { validateDataDirectorySize } from '@/lib/dataSize';
 
 /**
  * GET - 加载白板内容
@@ -72,6 +73,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 验证data目录大小限制
+    const contentBuffer = Buffer.from(content, 'utf-8');
+    await validateDataDirectorySize(contentBuffer.length);
+
     await saveBoardContent(content, mode);
 
     return NextResponse.json({
@@ -79,9 +84,10 @@ export async function POST(request: NextRequest) {
       mode,
       message: `${mode === 'normal' ? '普通模式' : 'Markdown模式'}内容保存成功`
     });
-  } catch {
+  } catch (error) {
+    console.error('保存白板内容失败:', error);
     return NextResponse.json(
-      { error: '保存白板内容失败' },
+      { error: error instanceof Error ? error.message : '保存白板内容失败' },
       { status: 500 }
     );
   }

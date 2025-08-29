@@ -7,6 +7,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { getAppEnvironment } from '@/lib/env';
 import { isSupportedFileType } from '@/lib/fileIcons';
+import { validateDataDirectorySize } from '@/lib/dataSize';
 
 const FILES_DIR = path.join(process.cwd(), 'data', 'files');
 
@@ -41,6 +42,9 @@ async function validateFileUpload(file: File): Promise<void> {
   if (!isSupportedFileType(file.name)) {
     throw new Error('不支持的文件类型，请上传非图片类型的文件');
   }
+
+  // 验证data目录大小限制
+  await validateDataDirectorySize(file.size);
 
   try {
     const existingFiles = await fs.readdir(FILES_DIR);

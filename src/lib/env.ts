@@ -9,6 +9,7 @@ export interface AppEnvironment {
   port: number;
   maxFileSize: number;
   maxFileCount: number;
+  maxDataDirSize: number;
 }
 function parseBooleanEnv(value: string | undefined, defaultValue: boolean = false): boolean {
   if (!value) return defaultValue;
@@ -53,6 +54,9 @@ export function getAppEnvironment(): AppEnvironment {
     // 文件上传配置
     maxFileSize: parseNumberEnv(process.env.MAX_FILE_SIZE, 10 * 1024 * 1024), // 默认10MB
     maxFileCount: parseNumberEnv(process.env.MAX_FILE_COUNT, 100), // 默认100个文件
+
+    // 数据目录总大小限制
+    maxDataDirSize: parseNumberEnv(process.env.MAX_DATA_DIR_SIZE, 500 * 1024 * 1024), // 默认500MB
   };
 }
 

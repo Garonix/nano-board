@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { validateDataDirectorySize } from '@/lib/dataSize';
 
 // 文本存储目录
 const TEXTS_DIR = path.join(process.cwd(), 'data', 'texts');
@@ -111,6 +112,10 @@ export async function POST(request: NextRequest) {
     // 生成唯一的文件路径
     const filePath = await generateUniqueFilePath(safeFileName);
 
+    // 验证data目录大小限制
+    const contentBuffer = Buffer.from(content, 'utf-8');
+    await validateDataDirectorySize(contentBuffer.length);
+
     // 保存纯文本内容（不使用JSON格式）
     await fs.writeFile(filePath, content, 'utf-8');
 
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('保存文本失败:', error);
     return NextResponse.json(
-      { error: '保存文本失败' },
+      { error: error instanceof Error ? error.message : '保存文本失败' },
       { status: 500 }
     );
   }

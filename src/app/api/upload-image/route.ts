@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { validateDataDirectorySize } from '@/lib/dataSize';
 
 const PICS_DIR = path.join(process.cwd(), 'data', 'pics');
 
@@ -108,6 +109,10 @@ export async function POST(request: NextRequest) {
 
     // 保存文件
     const buffer = Buffer.from(base64Data, 'base64');
+
+    // 验证data目录大小限制
+    await validateDataDirectorySize(buffer.length);
+
     await fs.writeFile(filePath, buffer);
 
     // 返回相对路径
@@ -117,9 +122,10 @@ export async function POST(request: NextRequest) {
       success: true,
       imagePath: relativePath
     });
-  } catch (_error) {
+  } catch (error) {
+    console.error('保存图片失败:', error);
     return NextResponse.json(
-      { error: '保存图片失败' },
+      { error: error instanceof Error ? error.message : '保存图片失败' },
       { status: 500 }
     );
   }
